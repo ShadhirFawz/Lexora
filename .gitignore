@@ -1,0 +1,20 @@
+# Node / frontend
+/frontend/node_modules/
+/frontend/.next/
+/frontend/.env.local
+/frontend/.env
+
+# PHP / backend
+/backend/vendor/
+/backend/node_modules/
+/backend/.env
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# logs
+*.log
+logs/
