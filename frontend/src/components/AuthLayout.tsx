@@ -32,7 +32,7 @@ export default function AuthLayout({ children, onAnimationComplete }: AuthLayout
   return (
     <div className="min-h-screen flex items-center justify-end bg-gradient-to-br from-gray-700 via-gray-200 to-gray-700 overflow-hidden">
       <div 
-        className="bg-slate-900 shadow-2xl rounded-l-2xl p-8 w-1/2 h-screen flex items-center justify-center"
+        className="bg-slate-900 shadow-2xl rounded-l-2xl p-8 w-2/5 h-screen flex items-center justify-center"
         style={{
           transform: isMounted ? 'translateX(0)' : 'translateX(40%)',
           opacity: isMounted ? 1 : 0,
