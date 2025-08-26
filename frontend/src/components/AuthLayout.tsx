@@ -34,7 +34,7 @@ export default function AuthLayout({ children, onAnimationComplete }: AuthLayout
       <div 
         className="bg-slate-900 shadow-2xl rounded-l-2xl p-8 w-1/2 h-screen flex items-center justify-center"
         style={{
-          transform: isMounted ? 'translateX(0)' : 'translateX(100%)',
+          transform: isMounted ? 'translateX(0)' : 'translateX(40%)',
           opacity: isMounted ? 1 : 0,
           transition: 'transform 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 1.2s ease-out'
         }}
