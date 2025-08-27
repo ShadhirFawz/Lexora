@@ -17,6 +17,20 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Lexora",
   description: "Read the world",
+  icons: {
+    icon: [
+      {
+        media: '(prefers-color-scheme: light)',
+        url: 'images/BrandLogo_Dark.png',
+        href: 'images/BrandLogo_Dark.png'
+      },
+      {
+        media: '(prefers-color-scheme: dark)',
+        url: 'images/BrandLogo_Dark.png',
+        href: 'images/BrandLogo_Dark.png'
+      }
+    ],
+  },
 };
 
 export default function RootLayout({

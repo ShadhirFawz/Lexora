@@ -31,7 +31,7 @@ export default function Icon(){
                 className="mb-6"
                 >
                 <img
-                    src="/images/logo.png" // Update this path to match your logo location
+                    src="/images/BrandLogo.png" // Update this path to match your logo location
                     alt="Logo"
                     width="100%" // Adjust based on your logo dimensions
                     height="100%"
