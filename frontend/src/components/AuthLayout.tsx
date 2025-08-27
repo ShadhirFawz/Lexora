@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode, useEffect, useState } from "react";
+import AuthBackground from "./AuthBackground";
 
 interface AuthLayoutProps {
   children: ReactNode;
@@ -30,7 +31,13 @@ export default function AuthLayout({ children, onAnimationComplete }: AuthLayout
   }, [onAnimationComplete]);
 
   return (
-    <div className="min-h-screen flex items-center justify-end bg-gradient-to-br from-gray-700 via-gray-200 to-gray-700 overflow-hidden">
+    <div className="min-h-screen flex bg-gradient-to-br from-gray-700 via-gray-200 to-gray-700 overflow-auto">
+      {/* Left 3/5 section with animated background and logo */}
+      <div className="w-3/5">
+        <AuthBackground />
+      </div>
+      
+      {/* Right 2/5 section with form */}
       <div 
         className="bg-slate-900 shadow-2xl rounded-l-2xl p-8 w-2/5 h-screen flex items-center justify-center"
         style={{
