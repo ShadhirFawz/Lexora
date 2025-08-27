@@ -45,7 +45,7 @@ const AnimatedLogo: React.FC<AnimatedLogoProps> = ({ size = "lg", className = ""
         transition={{ duration: 1 }}
         className="relative z-10"
       >
-        <div className={`font-bold ${sizeClasses[size]} tracking-wider`}>
+        <div className={`font-light ${sizeClasses[size]} tracking-wider`}>
           {letters.map((letter, index) => (
             <motion.span
               key={index}

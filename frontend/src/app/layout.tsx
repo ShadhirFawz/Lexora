@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Lexora",
-  description: "Read the world",
+  description: "Transform Your Learning Journey",
   icons: {
     icon: [
       {

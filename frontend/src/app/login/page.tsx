@@ -22,12 +22,24 @@ export default function LoginPage() {
   // ✅ Redirect if already logged in
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (token) router.push("/dashboard");
+    if (token) {
+      const role = localStorage.getItem("role");
+      // Redirect based on role if already logged in
+      redirectBasedOnRole(role);
+    }
     
     // Delay content animation by 1.2s (form slide duration)
     const timer = setTimeout(() => setShowContent(true), 1200);
     return () => clearTimeout(timer);
   }, [router]);
+
+  // Function to redirect based on user role
+  const redirectBasedOnRole = (role: string | null) => {
+    if (role === "student") router.push("/dashboard/student");
+    else if (role === "instructor") router.push("/dashboard/instructor");
+    else if (role === "admin") router.push("/dashboard/admin");
+    else router.push("/dashboard");
+  };
 
   const handleBlur = (field: string) => {
     setTouched(prev => ({ ...prev, [field]: true }));
@@ -93,7 +105,10 @@ export default function LoginPage() {
         email, 
         password: currentPassword // Use the stored password
       });
+      
+      // Store token and role
       localStorage.setItem("token", data.token);
+      localStorage.setItem("role", data.user.role);
       
       addToast({
         type: 'success',
@@ -102,13 +117,14 @@ export default function LoginPage() {
         duration: 2000,
       });
       
-      setTimeout(() => router.push("/dashboard"), 1500);
+      // Redirect based on user role
+      setTimeout(() => redirectBasedOnRole(data.user.role), 1500);
     } catch (err: any) {
       // Clear password field only on login failure
       setPassword("");
       
       // Set login error and highlight password field
-      const errorMessage = 'Invalid email or password';
+      const errorMessage = err.message || 'Invalid email or password';
       setLoginError(errorMessage);
       setErrors(prev => ({ ...prev, password: errorMessage }));
       setTouched(prev => ({ ...prev, password: true }));
