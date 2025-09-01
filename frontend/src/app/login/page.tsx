@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { apiRequest } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import AuthLayout from "@/components/AuthLayout";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/contexts/ToastContext";
@@ -101,7 +101,7 @@ export default function LoginPage() {
     setErrors({});
 
     try {
-      const data = await apiRequest("/login", "POST", { 
+      const data = await apiFetch("/login", "POST", { 
         email, 
         password: currentPassword // Use the stored password
       });

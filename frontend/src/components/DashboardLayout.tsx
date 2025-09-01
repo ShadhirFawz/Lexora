@@ -2,7 +2,7 @@
 
 import { ReactNode, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiRequest } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { FaChalkboardTeacher, FaBook, FaUsers, FaSignOutAlt } from "react-icons/fa";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
@@ -14,7 +14,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     if (!token) {
       router.push("/login");
     } else {
-      apiRequest("/me", "GET", null, token)
+      apiFetch("/me", "GET", null, token)
         .then((data) => setUser(data))
         .catch(() => {
           localStorage.removeItem("token");
@@ -26,7 +26,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const handleLogout = async () => {
     const token = localStorage.getItem("token");
     if (token) {
-      await apiRequest("/logout", "POST", null, token);
+      await apiFetch("/logout", "POST", null, token);
       localStorage.removeItem("token");
     }
     router.push("/login");
