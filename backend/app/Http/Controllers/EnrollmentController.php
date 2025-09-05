@@ -12,7 +12,7 @@ class EnrollmentController extends Controller
         $user = Auth::user();
 
         if ($user->role !== 'student') {
-            return response()->json(['error' => 'Only students can enroll'], 403);
+            return response()->json(['error' => 'You are not allowed to enroll, Only students can enroll'], 403);
         }
 
         $course = Course::findOrFail($courseId);
@@ -40,7 +40,7 @@ class EnrollmentController extends Controller
         $course = Course::findOrFail($courseId);
 
         if (!$user->coursesEnrolled()->where('course_id', $courseId)->exists()) {
-            return response()->json(['error' => 'Not enrolled in this course'], 404);
+            return response()->json(['error' => 'You are not enrolled in this course'], 404);
         }
 
         $user->coursesEnrolled()->detach($courseId);
