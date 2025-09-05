@@ -49,16 +49,18 @@ class User extends Authenticatable
         return $this->hasMany(Course::class, 'instructor_id');
     }
 
+    public function chapterProgress()
+    {
+        return $this->hasMany(ChapterProgress::class, 'student_id');
+    }
+
     /**
      * Courses this user is enrolled in (for students).
      */
-    public function coursesEnrolled(): BelongsToMany
+    public function coursesEnrolled()
     {
-        return $this->belongsToMany(
-            Course::class,      // related model
-            'course_student',   // pivot table
-            'student_id',       // foreign key on pivot pointing to this model
-            'course_id'         // foreign key on pivot pointing to related model
-        )->withTimestamps();
+        return $this->belongsToMany(Course::class, 'course_student', 'student_id', 'course_id')
+            ->withPivot('progress_percent')
+            ->withTimestamps();
     }
 }

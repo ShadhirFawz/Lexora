@@ -4,13 +4,11 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 use App\Models\User;
 
 class AuthController extends Controller
 {
-    /**
-     * Register a new user.
-     */
     public function register(Request $request)
     {
         $request->validate([
@@ -24,7 +22,7 @@ class AuthController extends Controller
             'name'     => $request->name,
             'email'    => $request->email,
             'password' => Hash::make($request->password),
-            'role'     => $request->role ?? 'student', // default role = student
+            'role'     => $request->role ?? 'student',
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -32,19 +30,11 @@ class AuthController extends Controller
         return response()->json([
             'status'  => 'success',
             'message' => 'User registered successfully',
-            'user'    => [
-                'id'    => $user->id,
-                'name'  => $user->name,
-                'email' => $user->email,
-                'role'  => $user->role,
-            ],
+            'user'    => $user->only(['id', 'name', 'email', 'role']),
             'token'   => $token,
-        ]);
+        ], 201);
     }
 
-    /**
-     * Login user and return token.
-     */
     public function login(Request $request)
     {
         $request->validate([
@@ -55,10 +45,9 @@ class AuthController extends Controller
         $user = User::where('email', $request->email)->first();
 
         if (! $user || ! Hash::check($request->password, $user->password)) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Invalid credentials'
-            ], 401);
+            throw ValidationException::withMessages([
+                'email' => ['The provided credentials are incorrect.'],
+            ]);
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -66,19 +55,11 @@ class AuthController extends Controller
         return response()->json([
             'status'  => 'success',
             'message' => 'Login successful',
-            'user'    => [
-                'id'    => $user->id,
-                'name'  => $user->name,
-                'email' => $user->email,
-                'role'  => $user->role,
-            ],
+            'user'    => $user->only(['id', 'name', 'email', 'role']),
             'token'   => $token,
         ]);
     }
 
-    /**
-     * Logout user (revoke token).
-     */
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();

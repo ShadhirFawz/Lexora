@@ -11,20 +11,26 @@ return new class extends Migration {
             $table->id();
             $table->string('title');
             $table->text('description')->nullable();
-            $table->unsignedBigInteger('instructor_id'); // FK to users
+            $table->string('image')->nullable(); // 🆕 for course image
+            $table->unsignedBigInteger('instructor_id');
             $table->timestamps();
 
-            $table->foreign('instructor_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('instructor_id')
+                ->references('id')
+                ->on('users')
+                ->onDelete('cascade');
         });
 
         Schema::create('course_student', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('course_id');
             $table->unsignedBigInteger('student_id');
+            $table->decimal('progress_percent', 5, 2)->default(0); // NEW
             $table->timestamps();
 
             $table->foreign('course_id')->references('id')->on('courses')->onDelete('cascade');
             $table->foreign('student_id')->references('id')->on('users')->onDelete('cascade');
+            $table->unique(['course_id', 'student_id']); // prevent duplicate enrollment
         });
     }
 
