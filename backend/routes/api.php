@@ -84,7 +84,6 @@ Route::middleware('auth:sanctum')->group(function () {
     */
     Route::post('/progress', [ChapterProgressController::class, 'update']);
     Route::get('/progress/{course_id}', [ChapterProgressController::class, 'show']);
-    Route::get('/my-courses', [ChapterProgressController::class, 'myCourses']);
 
     /*
     |--------------------------------------------------------------------------

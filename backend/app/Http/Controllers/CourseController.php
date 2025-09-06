@@ -28,15 +28,15 @@ class CourseController extends Controller
             return response()->json(['error' => 'Only instructors can create courses'], 403);
         }
 
-        $request->validate([
+        $validated = $request->validate([
             'title'       => 'required|string|max:255',
             'description' => 'nullable|string',
             'image'       => 'nullable|image|max:2048',
         ]);
 
         $data = [
-            'title'         => $request->title,
-            'description'   => $request->description,
+            'title'         => $validated['title'],
+            'description'   => $validated['description'] ?? null,
             'instructor_id' => $user->id,
         ];
 
@@ -59,7 +59,12 @@ class CourseController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        $course->update($request->only(['title', 'description']));
+        $validated = $request->validate([
+            'title'       => 'sometimes|required|string|max:255',
+            'description' => 'nullable|string',
+        ]);
+
+        $course->update($validated);
 
         return response()->json($course);
     }

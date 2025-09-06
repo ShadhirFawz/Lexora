@@ -18,20 +18,25 @@ class ChapterController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        $request->validate([
+        $validated = $request->validate([
             'title'       => 'required|string|max:255',
             'description' => 'nullable|string',
-            'order'       => 'integer',
+            'order'       => 'nullable|integer|min:0',
             'image'       => 'nullable|image|max:2048',
             'video_url'   => 'nullable|url',
         ]);
 
+        $nextOrder = (int) $course->chapters()->max('order');
+        $order = array_key_exists('order', $validated)
+            ? $validated['order']
+            : $nextOrder + 1;
+
         $data = [
             'course_id'   => $courseId,
-            'title'       => $request->title,
-            'description' => $request->description,
-            'order'       => $request->order ?? 0,
-            'video_url'   => $request->video_url,
+            'title'       => $validated['title'],
+            'description' => $validated['description'] ?? null,
+            'order'       => $order,
+            'video_url'   => $validated['video_url'] ?? null,
         ];
 
         if ($request->hasFile('image')) {
@@ -53,7 +58,15 @@ class ChapterController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        $chapter->update($request->only(['title', 'description', 'order', 'video_url']));
+        $validated = $request->validate([
+            'title'       => 'sometimes|required|string|max:255',
+            'description' => 'nullable|string',
+            'order'       => 'nullable|integer|min:0',
+            'video_url'   => 'nullable|url',
+            'image'       => 'nullable|image|max:2048',
+        ]);
+
+        $chapter->update(collect($validated)->except('image')->toArray());
 
         if ($request->hasFile('image')) {
             $path = $request->file('image')->store('chapters/images', 'public');
@@ -88,7 +101,7 @@ class ChapterController extends Controller
         }
 
         $request->validate([
-            'order' => 'required|integer',
+            'order' => 'required|integer|min:0',
         ]);
 
         $chapter->order = $request->order;
@@ -113,6 +126,7 @@ class ChapterController extends Controller
         $file = $request->file('resource');
         $path = $file->store('chapters/resources', 'public');
 
+        // Simplified design: store one resource path on the chapter record
         $chapter->notes_pdf = $path;
         $chapter->save();
 
