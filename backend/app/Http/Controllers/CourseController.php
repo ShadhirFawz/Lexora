@@ -5,9 +5,24 @@ namespace App\Http\Controllers;
 use App\Models\Course;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Google\Cloud\Storage\StorageClient;
 
 class CourseController extends Controller
 {
+    private $storage;
+    private $bucket;
+
+    public function __construct()
+    {
+        // Initialize Firebase Storage
+        $factory = (new Factory)
+            ->withServiceAccount(storage_path('app/firebase-credentials.json'))
+            ->withDatabaseUri('https://' . env('FIREBASE_PROJECT_ID') . '.firebaseio.com');
+
+        $this->storage = $factory->createStorage();
+        $this->bucket = $this->storage->getBucket();
+    }
+
     public function index()
     {
         $courses = Course::with('instructor')->get();
