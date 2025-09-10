@@ -106,9 +106,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/comments/{id}',             [CommentController::class, 'destroy']);
     Route::post('/comments/{id}/like',          [CommentLikeController::class, 'toggle']);
 
-    // TODO: Replies & listing (not yet implemented)
-    // Route::post('/comments/{id}/reply', [CommentController::class, 'reply']);
-    // Route::get('/courses/{courseId}/comments', [CommentController::class, 'index']);
+    // Replies & listing (not yet implemented)
+    Route::post('/comments/{id}/reply', [CommentController::class, 'reply']);
+    Route::get('/courses/{courseId}/comments', [CommentController::class, 'index']);
 
     /*
     |--------------------------------------------------------------------------
