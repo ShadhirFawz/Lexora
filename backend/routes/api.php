@@ -10,8 +10,7 @@ use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CommentLikeController;
 use App\Http\Controllers\EnrollmentController;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use Kreait\Firebase\Factory;
+use App\Http\Controllers\AdminController
 
 /*
 |--------------------------------------------------------------------------
@@ -37,6 +36,24 @@ Route::post('/login',    [AuthController::class, 'login']);
 
 // Authenticated user
 Route::middleware('auth:sanctum')->group(function () {
+
+    /*
+    |--------------------------------------------------------------------------
+    | Admin
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware('can:isAdmin')->prefix('admin')->group(function () {
+        // User management
+        Route::get('/users', [AdminController::class, 'listUsers']);
+        Route::put('/users/{id}/role', [AdminController::class, 'updateUserRole']);
+        Route::delete('/users/{id}', [AdminController::class, 'deleteUser']);
+
+        // Course management
+        Route::get('/courses', [AdminController::class, 'listCourses']);
+        Route::put('/courses/{id}/approve', [AdminController::class, 'approveCourse']);
+        Route::put('/courses/{id}/reject', [AdminController::class, 'rejectCourse']);
+        Route::delete('/courses/{id}', [AdminController::class, 'deleteCourse']);
+    });
 
     /*
     |--------------------------------------------------------------------------
