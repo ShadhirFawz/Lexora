@@ -10,6 +10,8 @@ use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CommentLikeController;
 use App\Http\Controllers\EnrollmentController;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Kreait\Firebase\Factory;
 
 /*
 |--------------------------------------------------------------------------
