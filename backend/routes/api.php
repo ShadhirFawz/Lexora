@@ -9,8 +9,8 @@ use App\Http\Controllers\StudentNoteController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CommentLikeController;
 use App\Http\Controllers\EnrollmentController;
+use App\Http\Controllers\AdminController;
 use Illuminate\Http\Request;
-use App\Http\Controllers\AdminController
 
 /*
 |--------------------------------------------------------------------------
@@ -41,8 +41,10 @@ Route::middleware('auth:sanctum')->group(function () {
     |--------------------------------------------------------------------------
     | Admin
     |--------------------------------------------------------------------------
+    | All admin endpoints are under /api/admin/*
+    | Role check is enforced inside AdminController methods.
     */
-    Route::middleware('can:isAdmin')->prefix('admin')->group(function () {
+    Route::prefix('admin')->group(function () {
         // User management
         Route::get('/users', [AdminController::class, 'listUsers']);
         Route::put('/users/{id}/role', [AdminController::class, 'updateUserRole']);
@@ -110,11 +112,6 @@ Route::middleware('auth:sanctum')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::post('/notes/video', [StudentNoteController::class, 'store']);
-
-    // TODO: Notes management (not yet implemented)
-    // Route::put('/notes/video/{id}', [StudentNoteController::class, 'update']);
-    // Route::delete('/notes/video/{id}', [StudentNoteController::class, 'destroy']);
-    // Route::get('/notes/video', [StudentNoteController::class, 'index']); // ?course & ?chapter
 
     /*
     |--------------------------------------------------------------------------
