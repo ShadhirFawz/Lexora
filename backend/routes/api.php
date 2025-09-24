@@ -118,13 +118,13 @@ Route::middleware('auth:sanctum')->group(function () {
     | Comments & Likes
     |--------------------------------------------------------------------------
     */
-    Route::post('/courses/{courseId}/comments', [CommentController::class, 'store']);
+    Route::post('/chapters/{courseId}/comments', [CommentController::class, 'store']);
     Route::delete('/comments/{id}',             [CommentController::class, 'destroy']);
     Route::post('/comments/{id}/like',          [CommentLikeController::class, 'toggle']);
 
     // Replies & listing (not yet implemented)
     Route::post('/comments/{id}/reply', [CommentController::class, 'reply']);
-    Route::get('/courses/{courseId}/comments', [CommentController::class, 'index']);
+    Route::get('/chapters/{courseId}/comments', [CommentController::class, 'index']);
 
     /*
     |--------------------------------------------------------------------------

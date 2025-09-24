@@ -13,11 +13,17 @@ class Comment extends Model
     use HasFactory;
 
     protected $fillable = [
+        'chapter_id',
         'course_id',
         'user_id',
         'parent_id',   // for instructor replies
         'content',
     ];
+
+    public function chapter(): BelongsTo
+    {
+        return $this->belongsTo(Chapter::class);
+    }
 
     public function course(): BelongsTo
     {

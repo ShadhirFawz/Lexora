@@ -3,13 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Comment;
+use App\Models\Chapter;
 use App\Models\Course;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class CommentController extends Controller
 {
-    public function store(Request $request, $courseId)
+    public function store(Request $request, $chapterId)
     {
         $validated = $request->validate([
             'content'   => 'required|string',
@@ -17,17 +18,18 @@ class CommentController extends Controller
         ]);
 
         $user = Auth::user();
-        $course = Course::findOrFail($courseId);
+        $chapter = Chapter::findOrFail($chapterId);
 
-        if (!$this->isAuthorized($user, $courseId)) {
-            return response()->json(['error' => 'Unauthorized to comment on this course'], 403);
+        if (!$this->isAuthorized($user, $chapter->course_id)) {
+            return response()->json(['error' => 'Unauthorized to comment on this chapter'], 403);
         }
 
         $comment = Comment::create([
-            'course_id' => $courseId,
-            'user_id'   => $user->id,
-            'content'   => $validated['content'],
-            'parent_id' => $validated['parent_id'] ?? null,
+            'chapter_id' => $chapterId,
+            'course_id'  => $chapter->course_id, // Keep course_id for easier querying
+            'user_id'    => $user->id,
+            'content'    => $validated['content'],
+            'parent_id'  => $validated['parent_id'] ?? null,
         ]);
 
         return response()->json($this->formatComment($comment), 201);
@@ -41,25 +43,27 @@ class CommentController extends Controller
 
         $parent = Comment::findOrFail($commentId);
         $user = Auth::user();
-        $course = $parent->course;
 
-        if (!$this->isAuthorized($user, $course->id)) {
-            return response()->json(['error' => 'Unauthorized to reply on this course'], 403);
+        if (!$this->isAuthorized($user, $parent->course_id)) {
+            return response()->json(['error' => 'Unauthorized to reply on this chapter'], 403);
         }
 
         $reply = Comment::create([
-            'course_id' => $course->id,
-            'user_id'   => $user->id,
-            'content'   => $validated['content'],
-            'parent_id' => $parent->id,
+            'chapter_id' => $parent->chapter_id,
+            'course_id'  => $parent->course_id,
+            'user_id'    => $user->id,
+            'content'    => $validated['content'],
+            'parent_id'  => $parent->id,
         ]);
 
         return response()->json($this->formatComment($reply), 201);
     }
 
-    public function index($courseId)
+    public function index($chapterId)
     {
-        $comments = Comment::where('course_id', $courseId)
+        $chapter = Chapter::findOrFail($chapterId);
+
+        $comments = Comment::where('chapter_id', $chapterId)
             ->whereNull('parent_id')
             ->with('replies')
             ->get();

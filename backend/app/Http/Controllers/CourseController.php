@@ -11,10 +11,50 @@ use Illuminate\Support\Str;
 
 class CourseController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $courses = Course::with('instructor')->get();
-        return response()->json($courses);
+        // Get pagination parameters with defaults
+        $perPage = $request->get('per_page', 10);
+        $page = $request->get('page', 1);
+
+        $courses = Course::with([
+            'instructor:id,name,email', // Only essential instructor fields
+            'chapters:id,course_id,title,order,video_url', // Only essential chapter fields
+            'students' => function ($query) {
+                $query->select('users.id', 'users.name')
+                    ->withPivot('progress_percent')
+                    ->limit(5); // Limit number of students returned
+            }
+        ])
+            ->withCount([
+                'chapters as total_chapters',
+                'students as total_students',
+                'comments as total_comments'
+            ])
+            ->select([ // Select only necessary course fields
+                'id',
+                'title',
+                'description',
+                'image_url',
+                'instructor_id',
+                'status',
+                'created_at',
+                'updated_at'
+            ])
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        return response()->json([
+            'data' => $courses->items(),
+            'pagination' => [
+                'current_page' => $courses->currentPage(),
+                'per_page' => $courses->perPage(),
+                'total' => $courses->total(),
+                'last_page' => $courses->lastPage(),
+                'from' => $courses->firstItem(),
+                'to' => $courses->lastItem(),
+            ]
+        ]);
     }
 
     public function show($courseId)

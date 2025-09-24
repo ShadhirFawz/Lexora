@@ -17,17 +17,17 @@ class CommentLikeController extends Controller
         }
 
         try {
-            // eager load course to avoid N+1
-            $comment = Comment::with('course')->findOrFail($commentId);
+            // eager load chapter and course to avoid N+1
+            $comment = Comment::with('chapter.course')->findOrFail($commentId);
 
-            // ensure the Comment model has a course relationship or course_id
-            $course = $comment->course ?? null;
-            if (! $course && empty($comment->course_id)) {
-                return response()->json(['error' => 'Comment not associated with a course'], 422);
+            // ensure the Comment model has a chapter relationship
+            $chapter = $comment->chapter ?? null;
+            if (! $chapter) {
+                return response()->json(['error' => 'Comment not associated with a chapter'], 422);
             }
 
-            // resolve course id either via relation or field
-            $courseId = $course ? $course->id : $comment->course_id;
+            // get course id from chapter
+            $courseId = $chapter->course_id;
 
             // permission check
             $allowed = false;
@@ -37,19 +37,17 @@ class CommentLikeController extends Controller
                 if (method_exists($user, 'coursesEnrolled')) {
                     $allowed = $user->coursesEnrolled()->where('course_id', $courseId)->exists();
                 } else {
-                    // fallback: allow if student role (you can tighten this)
                     $allowed = false;
                 }
             } elseif ($user->role === 'instructor') {
                 // instructor allowed only if they own the course
-                $allowed = ($course && $course->instructor_id === $user->id)
-                    || ($comment->course_id && $comment->course_id === $user->id); // unlikely, but safe
+                $allowed = $chapter->course->instructor_id === $user->id;
             } elseif ($user->role === 'admin') {
                 $allowed = true;
             }
 
             if (! $allowed) {
-                return response()->json(['error' => 'Unauthorized to like comments in this course'], 403);
+                return response()->json(['error' => 'Unauthorized to like comments in this chapter'], 403);
             }
 
             // ensure likes relation exists on the model
@@ -70,7 +68,6 @@ class CommentLikeController extends Controller
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['error' => 'Comment not found'], 404);
         } catch (\Exception $e) {
-            // log exception for troubleshooting
             Log::error('Error toggling comment like: ' . $e->getMessage(), [
                 'comment_id' => $commentId,
                 'user_id' => optional($user)->id,
