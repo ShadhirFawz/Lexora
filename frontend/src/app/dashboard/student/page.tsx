@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { courseApi, Course } from "@/lib/api";
+import { useRouter } from "next/navigation";
 
 interface EnrolledCourse extends Course {
   user_progress?: number;
@@ -31,6 +32,7 @@ export default function StudentDashboard() {
   const [availableCourses, setAvailableCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -116,6 +118,10 @@ export default function StudentDashboard() {
     const progress = isEnrolled ? (course as EnrolledCourse).user_progress || (course as EnrolledCourse).pivot?.progress_percent : null;
     const progressValue = progress ? parseFloat(progress.toString()) : 0;
 
+    const handleButtonClick = () => {
+      router.push(`/dashboard/student/courses/${course.id}`);
+    };
+
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -168,7 +174,9 @@ export default function StudentDashboard() {
           {/* Course Stats - Fixed position */}
           <div className="flex justify-between items-center text-xs text-gray-500 mb-3">
             <span>📊 {course.chapters?.length || 0} chapters</span>
-            <span>👥 {course.students?.length || 0} students</span>
+            {!isEnrolled && (
+              <span>👥 {course.students?.length || 0} students</span>
+            )}
           </div>
 
           {/* Progress Section - Fixed height if exists */}
@@ -192,7 +200,9 @@ export default function StudentDashboard() {
 
           {/* Action Button - Fixed at bottom */}
           <div className="pt-4 mt-auto"> {/* mt-auto pushes it to bottom */}
-            <button className={`w-full py-3 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+            <button 
+            onClick={handleButtonClick}
+            className={`w-full py-3 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
               isEnrolled 
                 ? 'bg-blue-600 text-white hover:bg-blue-700' 
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'

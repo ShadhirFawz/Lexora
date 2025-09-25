@@ -31,6 +31,7 @@ class CourseController extends Controller
                 'students as total_students',
                 'comments as total_comments'
             ])
+            ->where('status', 'approved')
             ->select([ // Select only necessary course fields
                 'id',
                 'title',
@@ -60,6 +61,20 @@ class CourseController extends Controller
     public function show($courseId)
     {
         $course = Course::with(['instructor', 'students', 'chapters'])->findOrFail($courseId);
+
+        // If course is not approved, only allow access to instructor or admin
+        if ($course->status !== 'approved') {
+            $user = Auth::user();
+            if (!$user || ($user->role !== 'instructor' && $user->role !== 'admin')) {
+                return response()->json(['error' => 'Course not available'], 404);
+            }
+
+            // For instructors, only allow access to their own courses
+            if ($user->role === 'instructor' && $course->instructor_id !== $user->id) {
+                return response()->json(['error' => 'Unauthorized'], 403);
+            }
+        }
+
         return response()->json($course);
     }
 
@@ -81,6 +96,7 @@ class CourseController extends Controller
             'title'         => $validated['title'],
             'description'   => $validated['description'] ?? null,
             'instructor_id' => $user->id,
+            'status'        => 'pending', // Set status to pending by default
         ];
 
         if ($request->hasFile('image')) {

@@ -2,21 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { courseApi, progressApi, commentApi, Course, Chapter, Comment } from "@/lib/api";
-import { FaBookOpen, FaCheckCircle, FaUser, FaChalkboardTeacher, FaUsers, FaCalendar, FaStar } from "react-icons/fa";
+import { courseApi, progressApi, Course, Chapter } from "@/lib/api";
+import { FaBookOpen, FaCheckCircle, FaUser, FaChalkboardTeacher, FaUsers, FaCalendar, FaStar, FaPlay, FaLock } from "react-icons/fa";
 
 interface CourseDetail extends Course {
   chapters?: Chapter[];
   students?: any[];
-  comments?: Comment[];
   total_chapters?: number;
   total_students?: number;
-  total_comments?: number;
-}
-
-interface ProgressData {
-  course: Course;
-  progress: any[];
 }
 
 export default function CourseDetailPage() {
@@ -25,9 +18,6 @@ export default function CourseDetailPage() {
   const courseId = params.courseId as string;
 
   const [course, setCourse] = useState<CourseDetail | null>(null);
-  const [progressData, setProgressData] = useState<ProgressData | null>(null);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [newComment, setNewComment] = useState("");
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
   const [isEnrolled, setIsEnrolled] = useState(false);
@@ -43,45 +33,31 @@ export default function CourseDetailPage() {
       try {
         setLoading(true);
         
-        // Fetch course details with all relationships
-        const courseData = await courseApi.getCourse(courseId);
-        setCourse(courseData);
+        // First, check if user is enrolled by calling my-courses endpoint
+        const myCourses = await courseApi.getMyCourses();
+        const enrolledCourse = myCourses.find((c: Course) => c.id === parseInt(courseId));
         
-        // Check if user is enrolled by looking at students array or pivot data
-        const enrolled = courseData.students?.some(student => 
-          student.id === getCurrentUserId() || courseData.pivot !== undefined
-        );
-        setIsEnrolled(!!enrolled);
-        
-        // If enrolled, fetch progress data
-        if (enrolled) {
+        if (enrolledCourse) {
+          // User is enrolled - use the course data from my-courses which includes pivot
+          setCourse(enrolledCourse);
+          setIsEnrolled(true);
+          
+          // Fetch progress data for enrolled course
           try {
             const progressResponse = await progressApi.getProgress(courseId);
-            setProgressData(progressResponse);
-            
-            // Calculate overall progress
-            if (progressResponse.progress && courseData.chapters) {
-              const completedChapters = progressResponse.progress.filter((p: any) => p.is_completed).length;
-              const totalChapters = courseData.chapters.length;
-              setUserProgress(totalChapters > 0 ? Math.round((completedChapters / totalChapters) * 100) : 0);
-            }
+            calculateProgress(progressResponse, enrolledCourse.chapters);
           } catch (error) {
             console.log("Progress data not available");
           }
-        }
-
-        // Fetch comments with safe error handling
-        try {
-          const commentsData = await commentApi.getComments(courseId);
-          setComments(commentsData || []);
-        } catch (error) {
-          console.log("Comments not available");
-          setComments([]);
+        } else {
+          // User is not enrolled - fetch regular course details
+          const courseData = await courseApi.getCourse(courseId);
+          setCourse(courseData);
+          setIsEnrolled(false);
         }
 
       } catch (error) {
         console.error("Failed to load course data:", error);
-        // Handle error - could redirect or show error message
       } finally {
         setLoading(false);
       }
@@ -90,28 +66,12 @@ export default function CourseDetailPage() {
     fetchCourseData();
   }, [courseId, router]);
 
-  const getCurrentUserId = (): number | null => {
-    if (typeof window !== "undefined") {
-      const userData = localStorage.getItem("user");
-      return userData ? JSON.parse(userData).id : null;
+  const calculateProgress = (progressResponse: any, chapters?: Chapter[]) => {
+    if (progressResponse?.progress && chapters) {
+      const completedChapters = progressResponse.progress.filter((p: any) => p.is_completed).length;
+      const totalChapters = chapters.length;
+      setUserProgress(totalChapters > 0 ? Math.round((completedChapters / totalChapters) * 100) : 0);
     }
-    return null;
-  };
-
-  // Safe user name extraction
-  const getUserInitial = (user: any) => {
-    if (!user || !user.name) return "U";
-    return user.name.charAt(0).toUpperCase();
-  };
-
-  const getUserName = (user: any) => {
-    if (!user || !user.name) return "Unknown User";
-    return user.name;
-  };
-
-  const getUserRole = (user: any) => {
-    if (!user || !user.role) return "user";
-    return user.role;
   };
 
   const handleEnroll = async () => {
@@ -119,12 +79,19 @@ export default function CourseDetailPage() {
     
     try {
       setEnrolling(true);
-      await courseApi.enroll(courseId);
+      const result = await courseApi.enroll(courseId);
       setIsEnrolled(true);
       
-      // Refresh course data to get updated student count and enrollment status
-      const updatedCourse = await courseApi.getCourse(courseId);
-      setCourse(updatedCourse);
+      // Refresh course data by fetching from my-courses endpoint
+      const myCourses = await courseApi.getMyCourses();
+      const enrolledCourse = myCourses.find((c: Course) => c.id === parseInt(courseId));
+      
+      if (enrolledCourse) {
+        setCourse(enrolledCourse);
+        
+        // Initialize progress for newly enrolled course
+        setUserProgress(0);
+      }
       
       alert("Successfully enrolled in the course!");
     } catch (error: any) {
@@ -142,7 +109,10 @@ export default function CourseDetailPage() {
       await courseApi.unenroll(courseId);
       setIsEnrolled(false);
       setUserProgress(0);
-      setProgressData(null);
+      
+      // Refresh course data by fetching regular course details
+      const courseData = await courseApi.getCourse(courseId);
+      setCourse(courseData);
       
       alert("Successfully unenrolled from the course.");
     } catch (error: any) {
@@ -152,34 +122,18 @@ export default function CourseDetailPage() {
     }
   };
 
-  const handleAddComment = async () => {
-    if (!newComment.trim()) {
-      alert("Please write a comment before posting.");
-      return;
-    }
-
-    try {
-      const comment = await commentApi.addComment(courseId, newComment);
-      setComments(prev => [comment, ...prev]);
-      setNewComment("");
-      alert("Comment added successfully!");
-    } catch (error: any) {
-      alert(error.message || "Failed to add comment");
-    }
-  };
-
   const handleChapterClick = (chapter: Chapter) => {
     if (!isEnrolled) {
       alert("Please enroll in the course to access chapter content.");
       return;
     }
-    // Navigate to chapter detail page or show chapter content
-    console.log("Opening chapter:", chapter);
+    // Navigate to chapter detail page
+    router.push(`/dashboard/student/courses/${courseId}/chapters/${chapter.id}`);
   };
 
   const getCompletedChapters = () => {
-    if (!progressData?.progress || !course?.chapters) return 0;
-    return progressData.progress.filter((p: any) => p.is_completed).length;
+    if (!course?.chapters) return 0;
+    return Math.round((userProgress / 100) * course.chapters.length);
   };
 
   if (loading) {
@@ -278,12 +232,12 @@ export default function CourseDetailPage() {
                 <div className="bg-blue-50 rounded-lg p-4 mb-6">
                   <div className="flex items-center">
                     <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                      {getUserInitial(course.instructor)}
+                      {course.instructor.name?.charAt(0) || "I"}
                     </div>
                     <div className="ml-4">
-                      <p className="font-semibold text-gray-900">{getUserName(course.instructor)}</p>
+                      <p className="font-semibold text-gray-900">{course.instructor.name}</p>
                       <p className="text-sm text-gray-600">{course.instructor.email}</p>
-                      <p className="text-xs text-blue-600 capitalize">{getUserRole(course.instructor)}</p>
+                      <p className="text-xs text-blue-600 capitalize">{course.instructor.role}</p>
                     </div>
                   </div>
                 </div>
@@ -298,13 +252,14 @@ export default function CourseDetailPage() {
                       disabled={enrolling}
                       className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors disabled:opacity-50"
                     >
-                      {enrolling ? "Unenrolling..." : "Unenroll"}
+                      {enrolling ? "Unenrolling..." : "Unenroll from Course"}
                     </button>
                     <button
-                      onClick={() => console.log("Continue learning")}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors"
+                      onClick={() => course.chapters?.[0] && handleChapterClick(course.chapters[0])}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors flex items-center"
                     >
-                      Continue Learning
+                      <FaPlay className="mr-2" />
+                      {userProgress === 100 ? 'Review Course' : 'Continue Learning'}
                     </button>
                   </>
                 ) : (
@@ -317,12 +272,20 @@ export default function CourseDetailPage() {
                   </button>
                 )}
               </div>
+
+              {/* Debug info */}
+              <div className="mt-4 p-3 bg-gray-100 rounded-lg">
+                <p className="text-xs text-gray-600">
+                  Status: <strong>{isEnrolled ? 'ENROLLED' : 'NOT ENROLLED'}</strong> | 
+                  Course ID: <strong>{course.id}</strong>
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Progress Section - Only for enrolled students */}
-        {isEnrolled && userProgress > 0 && (
+        {isEnrolled && (
           <div className="bg-white rounded-2xl shadow-xl p-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-gray-900">Your Progress</h2>
@@ -336,29 +299,36 @@ export default function CourseDetailPage() {
             </div>
             <p className="text-sm text-gray-600">
               {getCompletedChapters()} of {course.chapters?.length || 0} chapters completed
+              {userProgress === 100 && " 🎉 Course Completed!"}
             </p>
           </div>
         )}
 
-        {/* Chapters Section */}
+        {/* Course Content Section */}
         <div className="bg-white rounded-2xl shadow-xl p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Course Chapters</h2>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold text-gray-900">Course Content</h2>
+            {!isEnrolled && (
+              <div className="flex items-center text-orange-600 text-sm">
+                <FaLock className="mr-1" />
+                <span>Enroll to access content</span>
+              </div>
+            )}
+          </div>
+
           <div className="space-y-3">
             {course.chapters?.map((chapter, index) => {
-              const chapterProgress = progressData?.progress?.find((p: any) => p.chapter_id === chapter.id);
-              const isCompleted = chapterProgress?.is_completed;
-
+              const isAccessible = isEnrolled;
+              
               return (
                 <div
                   key={chapter.id}
-                  onClick={() => handleChapterClick(chapter)}
-                  className={`flex items-center p-4 border rounded-lg cursor-pointer transition-all ${
-                    isEnrolled 
-                      ? 'hover:bg-blue-50 hover:border-blue-200' 
-                      : 'opacity-75 cursor-not-allowed'
-                  } ${
-                    isCompleted ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
-                  }`}
+                  onClick={() => isAccessible && handleChapterClick(chapter)}
+                  className={`flex items-center p-4 border rounded-lg transition-all ${
+                    isAccessible 
+                      ? 'cursor-pointer hover:bg-blue-50 hover:border-blue-200' 
+                      : 'opacity-75 cursor-not-allowed bg-gray-50'
+                  } ${isAccessible ? 'border-gray-200' : 'border-gray-300'}`}
                 >
                   <div className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-600 rounded-full font-semibold mr-4">
                     {index + 1}
@@ -368,14 +338,22 @@ export default function CourseDetailPage() {
                     {chapter.description && (
                       <p className="text-sm text-gray-600 mt-1">{chapter.description}</p>
                     )}
-                  </div>
-                  {isEnrolled && (
-                    <div className="flex items-center space-x-2">
-                      {isCompleted && <FaCheckCircle className="text-green-500 text-lg" />}
-                      <span className="text-sm text-gray-500">
-                        {chapter.video_url ? 'Video' : 'Reading'}
-                      </span>
+                    <div className="flex items-center mt-2 text-xs text-gray-500">
+                      {chapter.video_url ? (
+                        <>
+                          <FaPlay className="mr-1" />
+                          <span>Video Lesson</span>
+                        </>
+                      ) : (
+                        <span>Reading Material</span>
+                      )}
                     </div>
+                  </div>
+                  {!isAccessible && (
+                    <FaLock className="text-gray-400 text-lg" />
+                  )}
+                  {isAccessible && (
+                    <FaBookOpen className="text-blue-500 text-lg" />
                   )}
                 </div>
               );
@@ -390,60 +368,48 @@ export default function CourseDetailPage() {
           </div>
         </div>
 
-        {/* Comments Section */}
-        <div className="bg-white rounded-2xl shadow-xl p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Course Discussions</h2>
-          
-          {/* Add Comment Form */}
-          <div className="mb-6">
-            <textarea
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Share your thoughts, ask questions, or discuss the course content..."
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              rows={4}
-            />
-            <div className="flex justify-end mt-3">
-              <button
-                onClick={handleAddComment}
-                disabled={!newComment.trim()}
-                className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-medium transition-colors"
-              >
-                Post Comment
-              </button>
-            </div>
+        {/* Additional Course Information */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Course Requirements */}
+          <div className="bg-white rounded-2xl shadow-xl p-6">
+            <h3 className="font-semibold text-gray-900 mb-4">What You'll Learn</h3>
+            <ul className="space-y-2 text-gray-600">
+              <li className="flex items-center">
+                <FaCheckCircle className="text-green-500 mr-2" />
+                Complete understanding of course topics
+              </li>
+              <li className="flex items-center">
+                <FaCheckCircle className="text-green-500 mr-2" />
+                Practical skills and knowledge
+              </li>
+              <li className="flex items-center">
+                <FaCheckCircle className="text-green-500 mr-2" />
+                Certificate upon completion
+              </li>
+            </ul>
           </div>
 
-          {/* Comments List */}
-          <div className="space-y-4">
-            {comments.map((comment) => (
-              <div key={comment.id} className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center">
-                    <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 font-semibold text-sm mr-3">
-                      {getUserInitial(comment.user)}
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-900">{getUserName(comment.user)}</span>
-                      <span className="ml-2 text-sm text-gray-500 capitalize">{getUserRole(comment.user)}</span>
-                    </div>
-                  </div>
-                  {comment.created_at && (
-                    <span className="text-sm text-gray-400">
-                      {new Date(comment.created_at).toLocaleDateString()}
-                    </span>
-                  )}
-                </div>
-                <p className="text-gray-700">{comment.content}</p>
+          {/* Course Statistics */}
+          <div className="bg-white rounded-2xl shadow-xl p-6">
+            <h3 className="font-semibold text-gray-900 mb-4">Course Statistics</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Total Duration</span>
+                <span className="font-medium">{course.chapters?.length || 0} chapters</span>
               </div>
-            ))}
-            
-            {comments.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <FaUsers className="text-4xl mx-auto mb-3 text-gray-300" />
-                <p>No discussions yet. Be the first to start a conversation!</p>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Enrolled Students</span>
+                <span className="font-medium">{course.students?.length || 0}</span>
               </div>
-            )}
+              <div className="flex justify-between">
+                <span className="text-gray-600">Course Level</span>
+                <span className="font-medium">Beginner to Intermediate</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Last Updated</span>
+                <span className="font-medium">{new Date(course.updated_at!).toLocaleDateString()}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
