@@ -9,6 +9,7 @@ use App\Http\Controllers\StudentNoteController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CommentLikeController;
 use App\Http\Controllers\EnrollmentController;
+use App\Http\Controllers\StudentCourseController;
 use App\Http\Controllers\AdminController;
 use Illuminate\Http\Request;
 
@@ -133,6 +134,15 @@ Route::middleware('auth:sanctum')->group(function () {
     */
     Route::post('/courses/{courseId}/enroll', [EnrollmentController::class, 'store']);
     Route::delete('/courses/{courseId}/unenroll', [EnrollmentController::class, 'destroy']);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Student Course Management
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/student/courses/check-enrollment/{courseId}', [StudentCourseController::class, 'checkEnrollment']);
+    Route::get('/student/courses/{courseId}', [StudentCourseController::class, 'getCourseWithEnrollmentStatus']);
+    Route::get('/student/courses', [StudentCourseController::class, 'getCoursesWithEnrollmentStatus']);
 
     /*
     |--------------------------------------------------------------------------

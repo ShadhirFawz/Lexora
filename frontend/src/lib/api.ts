@@ -319,6 +319,28 @@ export const noteApi = {
     apiFetch(`/chapters/${chapterId}/notes`, "GET", null, token),
 };
 
+// Student Course API calls
+export const studentCourseApi = {
+  // Check enrollment status for a specific course
+  checkEnrollment: (courseId: string | string[] | number | undefined, token?: string) => {
+    const id = Array.isArray(courseId) ? courseId[0] : courseId;
+    if (!id) throw new Error("Course ID is required");
+    return apiFetch(`/student/courses/check-enrollment/${id}`, "GET", null, token);
+  },
+
+  // Get course details with enrollment status
+  getCourseWithEnrollment: (courseId: string | string[] | number | undefined, token?: string) => {
+    const id = Array.isArray(courseId) ? courseId[0] : courseId;
+    if (!id) throw new Error("Course ID is required");
+    return apiFetch(`/student/courses/${id}`, "GET", null, token);
+  },
+
+  // Get all courses with enrollment status
+  getCoursesWithEnrollment: (token?: string) =>
+    apiFetch("/student/courses", "GET", null, token),
+};
+
+
 // Admin API calls
 export const adminApi = {
   // User management

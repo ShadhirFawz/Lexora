@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { courseApi, progressApi, Course, Chapter } from "@/lib/api";
+import { studentCourseApi, courseApi, Course, Chapter } from "@/lib/api";
 import { FaBookOpen, FaCheckCircle, FaUser, FaChalkboardTeacher, FaUsers, FaCalendar, FaStar, FaPlay, FaLock } from "react-icons/fa";
 
 interface CourseDetail extends Course {
@@ -10,6 +10,17 @@ interface CourseDetail extends Course {
   students?: any[];
   total_chapters?: number;
   total_students?: number;
+}
+
+interface EnrollmentStatus {
+  is_enrolled: boolean;
+  enrollment_data: any;
+  progress_data: any;
+}
+
+interface CourseWithEnrollmentResponse {
+  course: CourseDetail;
+  enrollment_status: EnrollmentStatus;
 }
 
 export default function CourseDetailPage() {
@@ -22,6 +33,7 @@ export default function CourseDetailPage() {
   const [enrolling, setEnrolling] = useState(false);
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [userProgress, setUserProgress] = useState<number>(0);
+  const [enrollmentData, setEnrollmentData] = useState<any>(null);
 
   useEffect(() => {
     if (!courseId) {
@@ -33,31 +45,42 @@ export default function CourseDetailPage() {
       try {
         setLoading(true);
         
-        // First, check if user is enrolled by calling my-courses endpoint
-        const myCourses = await courseApi.getMyCourses();
-        const enrolledCourse = myCourses.find((c: Course) => c.id === parseInt(courseId));
-        
-        if (enrolledCourse) {
-          // User is enrolled - use the course data from my-courses which includes pivot
-          setCourse(enrolledCourse);
-          setIsEnrolled(true);
-          
-          // Fetch progress data for enrolled course
-          try {
-            const progressResponse = await progressApi.getProgress(courseId);
-            calculateProgress(progressResponse, enrolledCourse.chapters);
-          } catch (error) {
-            console.log("Progress data not available");
+        // Use the new endpoint that returns course with enrollment status
+        const response: CourseWithEnrollmentResponse = await studentCourseApi.getCourseWithEnrollment(courseId);
+        setCourse(response.course);
+        setIsEnrolled(response.enrollment_status.is_enrolled);
+        setEnrollmentData(response.enrollment_status.enrollment_data);
+
+        // Calculate progress if enrolled
+        if (response.enrollment_status.is_enrolled && response.course.chapters) {
+          const progressData = response.enrollment_status.progress_data;
+          if (progressData) {
+            const completedChapters = progressData.filter((p: any) => p.is_completed).length;
+            const totalChapters = response.course.chapters.length;
+            setUserProgress(totalChapters > 0 ? Math.round((completedChapters / totalChapters) * 100) : 0);
+          } else if (response.enrollment_status.enrollment_data) {
+            // Use progress from enrollment data if available
+            const progressPercent = parseFloat(response.enrollment_status.enrollment_data.progress_percent || '0');
+            setUserProgress(progressPercent);
           }
-        } else {
-          // User is not enrolled - fetch regular course details
-          const courseData = await courseApi.getCourse(courseId);
-          setCourse(courseData);
-          setIsEnrolled(false);
         }
+
+        console.log('Course data loaded:', {
+          isEnrolled: response.enrollment_status.is_enrolled,
+          enrollmentData: response.enrollment_status.enrollment_data,
+          progressData: response.enrollment_status.progress_data
+        });
 
       } catch (error) {
         console.error("Failed to load course data:", error);
+        // Fallback to regular course API if the new endpoint fails
+        try {
+          const fallbackCourse = await courseApi.getCourse(courseId);
+          setCourse(fallbackCourse);
+          setIsEnrolled(false);
+        } catch (fallbackError) {
+          console.error("Fallback also failed:", fallbackError);
+        }
       } finally {
         setLoading(false);
       }
@@ -66,32 +89,21 @@ export default function CourseDetailPage() {
     fetchCourseData();
   }, [courseId, router]);
 
-  const calculateProgress = (progressResponse: any, chapters?: Chapter[]) => {
-    if (progressResponse?.progress && chapters) {
-      const completedChapters = progressResponse.progress.filter((p: any) => p.is_completed).length;
-      const totalChapters = chapters.length;
-      setUserProgress(totalChapters > 0 ? Math.round((completedChapters / totalChapters) * 100) : 0);
-    }
-  };
-
   const handleEnroll = async () => {
     if (!confirm("Are you sure you want to enroll in this course?")) return;
     
     try {
       setEnrolling(true);
-      const result = await courseApi.enroll(courseId);
-      setIsEnrolled(true);
+      await courseApi.enroll(courseId);
       
-      // Refresh course data by fetching from my-courses endpoint
-      const myCourses = await courseApi.getMyCourses();
-      const enrolledCourse = myCourses.find((c: Course) => c.id === parseInt(courseId));
+      // Refresh course data using the new endpoint
+      const response: CourseWithEnrollmentResponse = await studentCourseApi.getCourseWithEnrollment(courseId);
+      setCourse(response.course);
+      setIsEnrolled(response.enrollment_status.is_enrolled);
+      setEnrollmentData(response.enrollment_status.enrollment_data);
       
-      if (enrolledCourse) {
-        setCourse(enrolledCourse);
-        
-        // Initialize progress for newly enrolled course
-        setUserProgress(0);
-      }
+      // Initialize progress for newly enrolled course
+      setUserProgress(0);
       
       alert("Successfully enrolled in the course!");
     } catch (error: any) {
@@ -107,12 +119,13 @@ export default function CourseDetailPage() {
     try {
       setEnrolling(true);
       await courseApi.unenroll(courseId);
-      setIsEnrolled(false);
-      setUserProgress(0);
       
-      // Refresh course data by fetching regular course details
-      const courseData = await courseApi.getCourse(courseId);
-      setCourse(courseData);
+      // Refresh course data using the new endpoint
+      const response: CourseWithEnrollmentResponse = await studentCourseApi.getCourseWithEnrollment(courseId);
+      setCourse(response.course);
+      setIsEnrolled(response.enrollment_status.is_enrolled);
+      setEnrollmentData(response.enrollment_status.enrollment_data);
+      setUserProgress(0);
       
       alert("Successfully unenrolled from the course.");
     } catch (error: any) {
@@ -134,6 +147,13 @@ export default function CourseDetailPage() {
   const getCompletedChapters = () => {
     if (!course?.chapters) return 0;
     return Math.round((userProgress / 100) * course.chapters.length);
+  };
+
+  const getEnrollmentDate = () => {
+    if (enrollmentData?.created_at) {
+      return new Date(enrollmentData.created_at).toLocaleDateString();
+    }
+    return null;
   };
 
   if (loading) {
@@ -243,6 +263,24 @@ export default function CourseDetailPage() {
                 </div>
               )}
 
+              {/* Enrollment Status Info */}
+              {isEnrolled && enrollmentData && (
+                <div className="bg-green-50 rounded-lg p-4 mb-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-green-900">You are enrolled in this course</p>
+                      <p className="text-sm text-green-700">
+                        Progress: {userProgress}% • 
+                        Enrolled on: {getEnrollmentDate()}
+                      </p>
+                    </div>
+                    <div className="text-2xl font-bold text-green-600">
+                      {userProgress}%
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Enrollment Actions */}
               <div className="flex space-x-4">
                 {isEnrolled ? (
@@ -272,14 +310,6 @@ export default function CourseDetailPage() {
                   </button>
                 )}
               </div>
-
-              {/* Debug info */}
-              <div className="mt-4 p-3 bg-gray-100 rounded-lg">
-                <p className="text-xs text-gray-600">
-                  Status: <strong>{isEnrolled ? 'ENROLLED' : 'NOT ENROLLED'}</strong> | 
-                  Course ID: <strong>{course.id}</strong>
-                </p>
-              </div>
             </div>
           </div>
         </div>
@@ -288,7 +318,7 @@ export default function CourseDetailPage() {
         {isEnrolled && (
           <div className="bg-white rounded-2xl shadow-xl p-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">Your Progress</h2>
+              <h2 className="text-xl font-semibold text-gray-900">Your Learning Progress</h2>
               <span className="text-2xl font-bold text-green-600">{userProgress}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
@@ -301,6 +331,12 @@ export default function CourseDetailPage() {
               {getCompletedChapters()} of {course.chapters?.length || 0} chapters completed
               {userProgress === 100 && " 🎉 Course Completed!"}
             </p>
+            {enrollmentData && (
+              <div className="mt-3 grid grid-cols-2 gap-4 text-xs text-gray-500">
+                <div>Enrolled: {getEnrollmentDate()}</div>
+                <div>Last activity: {enrollmentData.updated_at ? new Date(enrollmentData.updated_at).toLocaleDateString() : 'Recently'}</div>
+              </div>
+            )}
           </div>
         )}
 
