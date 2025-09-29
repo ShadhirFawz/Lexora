@@ -16,10 +16,17 @@ export async function apiFetch(
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 
+  // Handle FormData (for file uploads)
+  let finalBody: any = body;
+  if (body && body instanceof FormData) {
+    finalBody = body;
+    delete headers["Content-Type"]; // Let browser set content-type with boundary for FormData
+  }
+
   const response = await fetch(`${API_URL}${endpoint}`, {
     method,
     headers,
-    body: body ? JSON.stringify(body) : undefined,
+    body: finalBody ? (finalBody instanceof FormData ? finalBody : JSON.stringify(finalBody)) : undefined,
   });
 
   // Handle errors gracefully
@@ -32,7 +39,7 @@ export async function apiFetch(
 
   if (!response.ok) {
     const message =
-      data?.message || response.statusText || "API request failed";
+      data?.message || data?.error || response.statusText || "API request failed";
     throw new Error(message);
   }
 
@@ -81,6 +88,10 @@ export interface Course {
   };
   chapters?: Chapter[];
   students?: User[];
+  total_chapters?: number;
+  total_students?: number;
+  total_comments?: number;
+  is_enrolled?: boolean;
 }
 
 export interface Chapter {
@@ -114,6 +125,28 @@ export interface Enrollment {
   updated_at: string;
 }
 
+export interface CourseReaction {
+  id: number;
+  course_id: number;
+  student_id: number;
+  emoji_type: string;
+  student?: User;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CourseComment {
+  id: number;
+  course_id: number;
+  user_id: number;
+  content: string;
+  parent_id?: number | null;
+  user?: User;
+  replies?: CourseComment[];
+  created_at?: string;
+  updated_at?: string;
+}
+
 // Auth API calls
 export const authApi = {
   login: (email: string, password: string) =>
@@ -132,8 +165,14 @@ export const authApi = {
 // Course-related API calls
 export const courseApi = {
   // Get all courses
-  getAllCourses: (token?: string) =>
-    apiFetch("/courses", "GET", null, token),
+  getAllCourses: (params?: { per_page?: number; page?: number }, token?: string) => {
+    const queryParams = new URLSearchParams();
+    if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+    if (params?.page) queryParams.append('page', params.page.toString());
+    
+    const queryString = queryParams.toString();
+    return apiFetch(`/courses${queryString ? `?${queryString}` : ''}`, "GET", null, token);
+  },
 
   // Get user's courses (role-specific)
   getMyCourses: (token?: string) =>
@@ -184,6 +223,38 @@ export const courseApi = {
     if (!id) throw new Error("Course ID is required");
     return apiFetch(`/courses/${id}/unenroll`, "DELETE", null, token);
   },
+};
+
+// Course Reactions API calls
+export const courseReactionApi = {
+  // Toggle reaction on course
+  toggleReaction: (courseId: number, emojiType: string, token?: string) =>
+    apiFetch(`/courses/${courseId}/react`, "POST", { emoji_type: emojiType }, token),
+
+  // Get reactions for course
+  getReactions: (courseId: number, token?: string) =>
+    apiFetch(`/courses/${courseId}/reactions`, "GET", null, token),
+};
+
+// Course Comments API calls
+export const courseCommentApi = {
+  // Get comments for course
+  getComments: (courseId: string | string[] | number | undefined, token?: string) => {
+    const id = Array.isArray(courseId) ? courseId[0] : courseId;
+    if (!id) throw new Error("Course ID is required");
+    return apiFetch(`/courses/${id}/comments`, "GET", null, token);
+  },
+
+  // Add comment to course
+  addComment: (courseId: string | string[] | number | undefined, content: string, parentId?: number, token?: string) => {
+    const id = Array.isArray(courseId) ? courseId[0] : courseId;
+    if (!id) throw new Error("Course ID is required");
+    return apiFetch(`/courses/${id}/comments`, "POST", { content, parent_id: parentId }, token);
+  },
+
+  // Like/unlike course comment
+  toggleLike: (commentId: number, token?: string) =>
+    apiFetch(`/course-comments/${commentId}/like`, "POST", null, token),
 };
 
 // Chapter-related API calls
@@ -246,13 +317,6 @@ export const chapterApi = {
   // Get video URL
   getVideo: (chapterId: number, token?: string) =>
     apiFetch(`/chapters/${chapterId}/video`, "GET", null, token),
-
-  // Get chapter details
-  getChapter: (chapterId: string | string[] | number | undefined, token?: string) => {
-    const id = Array.isArray(chapterId) ? chapterId[0] : chapterId;
-    if (!id) throw new Error("Chapter ID is required");
-    return apiFetch(`/chapters/${id}`, "GET", null, token);
-  },
 };
 
 // Progress-related API calls
@@ -274,16 +338,16 @@ export const progressApi = {
   },
 };
 
-// Comment-related API calls (UPDATED: Now chapter-based instead of course-based)
-export const commentApi = {
-  // Get comments for chapter (UPDATED)
+// Chapter Comment-related API calls
+export const chapterCommentApi = {
+  // Get comments for chapter
   getComments: (chapterId: string | string[] | number | undefined, token?: string) => {
     const id = Array.isArray(chapterId) ? chapterId[0] : chapterId;
     if (!id) throw new Error("Chapter ID is required");
     return apiFetch(`/chapters/${id}/comments`, "GET", null, token);
   },
 
-  // Add comment to chapter (UPDATED)
+  // Add comment to chapter
   addComment: (chapterId: string | string[] | number | undefined, content: string, parentId?: number, token?: string) => {
     const id = Array.isArray(chapterId) ? chapterId[0] : chapterId;
     if (!id) throw new Error("Chapter ID is required");
@@ -296,7 +360,7 @@ export const commentApi = {
 
   // Delete comment
   deleteComment: (commentId: number, token?: string) =>
-    apiFetch(`/comments/${commentId}`, "DELETE", null, token),
+    apiFetch(`/comments/${commentId}/delete`, "DELETE", null, token),
 
   // Like/unlike comment
   toggleLike: (commentId: number, token?: string) =>
@@ -305,7 +369,7 @@ export const commentApi = {
 
 // Note-related API calls
 export const noteApi = {
-  // Save video note (UPDATED: This should probably be chapter-based too)
+  // Save video note
   saveNote: (courseId: number, chapterId: number, content: string, timestamp: number, token?: string) =>
     apiFetch("/notes/video", "POST", {
       course_id: courseId,
@@ -313,10 +377,6 @@ export const noteApi = {
       content,
       timestamp
     }, token),
-
-  // Get notes for chapter (NEW - you might want to add this)
-  getChapterNotes: (chapterId: number, token?: string) =>
-    apiFetch(`/chapters/${chapterId}/notes`, "GET", null, token),
 };
 
 // Student Course API calls
@@ -336,10 +396,15 @@ export const studentCourseApi = {
   },
 
   // Get all courses with enrollment status
-  getCoursesWithEnrollment: (token?: string) =>
-    apiFetch("/student/courses", "GET", null, token),
+  getCoursesWithEnrollment: (params?: { per_page?: number; page?: number }, token?: string) => {
+    const queryParams = new URLSearchParams();
+    if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+    if (params?.page) queryParams.append('page', params.page.toString());
+    
+    const queryString = queryParams.toString();
+    return apiFetch(`/student/courses${queryString ? `?${queryString}` : ''}`, "GET", null, token);
+  },
 };
-
 
 // Admin API calls
 export const adminApi = {
