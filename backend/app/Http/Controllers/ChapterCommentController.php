@@ -8,7 +8,7 @@ use App\Models\Course;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
-class CommentController extends Controller
+class ChapterCommentController extends Controller
 {
     public function store(Request $request, $chapterId)
     {

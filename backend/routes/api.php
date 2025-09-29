@@ -3,10 +3,12 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CourseController;
+use App\Http\Controllers\CourseCommentController;
+use App\Http\Controllers\CourseReactionController;
 use App\Http\Controllers\ChapterController;
 use App\Http\Controllers\ChapterProgressController;
 use App\Http\Controllers\StudentNoteController;
-use App\Http\Controllers\CommentController;
+use App\Http\Controllers\ChapterCommentController;
 use App\Http\Controllers\CommentLikeController;
 use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\StudentCourseController;
@@ -86,6 +88,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/courses/{id}',  [CourseController::class, 'destroy']);
     Route::post('/courses/{id}/image', [CourseController::class, 'uploadImage']);
 
+    // Course Reactions
+    Route::post('/courses/{courseId}/react', [CourseReactionController::class, 'toggleReaction']);
+    Route::get('/courses/{courseId}/reactions', [CourseReactionController::class, 'getReactions']);
+
+    // Course Comments  
+    Route::post('/courses/{courseId}/comments', [CourseCommentController::class, 'store']);
+    Route::get('/courses/{courseId}/comments', [CourseCommentController::class, 'index']);
+    Route::post('/course-comments/{commentId}/like', [CourseCommentController::class, 'toggleLike']);
+
     /*
     |--------------------------------------------------------------------------
     | Chapters
@@ -116,16 +127,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Comments & Likes
+    | Chapter Comments & Likes
     |--------------------------------------------------------------------------
     */
-    Route::post('/chapters/{chapterId}/comments', [CommentController::class, 'store']);
-    Route::delete('/comments/{id}',             [CommentController::class, 'destroy']);
-    Route::post('/comments/{id}/like',          [CommentLikeController::class, 'toggle']);
-
-    // Replies & listing (not yet implemented)
-    Route::post('/comments/{id}/reply', [CommentController::class, 'reply']);
-    Route::get('/chapters/{chapterId}/comments', [CommentController::class, 'index']);
+    Route::post('/chapters/{chapterId}/comments', [ChapterCommentController::class, 'store']);
+    Route::get('/chapters/{chapterId}/comments', [ChapterCommentController::class, 'index']);
+    Route::delete('/comments/{id}/delete', [ChapterCommentController::class, 'destroy']);
+    Route::post('/comments/{id}/like', [CommentLikeController::class, 'toggle']);
+    Route::post('/comments/{id}/reply', [ChapterCommentController::class, 'reply']);
 
     /*
     |--------------------------------------------------------------------------
