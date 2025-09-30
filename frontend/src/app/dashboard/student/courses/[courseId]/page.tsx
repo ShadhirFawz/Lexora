@@ -20,7 +20,17 @@ interface EnrollmentStatus {
 
 interface CourseWithEnrollmentResponse {
   course: CourseDetail;
-  enrollment_status: EnrollmentStatus;
+  enrollment_status: {
+    is_enrolled: boolean;
+    enrollment_data: {
+      student_id: number;
+      course_id: number;
+      progress_percent: string;
+      created_at: string;
+      updated_at: string;
+    } | null;
+    progress_data: any[];
+  };
 }
 
 export default function CourseDetailPage() {
@@ -34,6 +44,12 @@ export default function CourseDetailPage() {
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [userProgress, setUserProgress] = useState<number>(0);
   const [enrollmentData, setEnrollmentData] = useState<any>(null);
+
+  // Utility function to safely parse a date string or provide a fallback
+  const getSafeDate = (dateString: string | undefined | null, fallback: string = new Date().toISOString()): Date => {
+    if (!dateString) return new Date(fallback);
+    return new Date(dateString);
+  };
 
   useEffect(() => {
     if (!courseId) {
@@ -54,7 +70,8 @@ export default function CourseDetailPage() {
         // Calculate progress if enrolled
         if (response.enrollment_status.is_enrolled && response.course.chapters) {
           const progressData = response.enrollment_status.progress_data;
-          if (progressData) {
+          
+          if (progressData && progressData.length > 0) {
             const completedChapters = progressData.filter((p: any) => p.is_completed).length;
             const totalChapters = response.course.chapters.length;
             setUserProgress(totalChapters > 0 ? Math.round((completedChapters / totalChapters) * 100) : 0);
@@ -62,6 +79,8 @@ export default function CourseDetailPage() {
             // Use progress from enrollment data if available
             const progressPercent = parseFloat(response.enrollment_status.enrollment_data.progress_percent || '0');
             setUserProgress(progressPercent);
+          } else {
+            setUserProgress(0);
           }
         }
 
@@ -107,7 +126,8 @@ export default function CourseDetailPage() {
       
       alert("Successfully enrolled in the course!");
     } catch (error: any) {
-      alert(error.message || "Failed to enroll in the course");
+      console.error("Enrollment error:", error);
+      alert(error.message || "Failed to enroll in the course. Please try again.");
     } finally {
       setEnrolling(false);
     }
@@ -129,7 +149,8 @@ export default function CourseDetailPage() {
       
       alert("Successfully unenrolled from the course.");
     } catch (error: any) {
-      alert(error.message || "Failed to unenroll from the course");
+      console.error("Unenrollment error:", error);
+      alert(error.message || "Failed to unenroll from the course. Please try again.");
     } finally {
       setEnrolling(false);
     }
@@ -151,7 +172,7 @@ export default function CourseDetailPage() {
 
   const getEnrollmentDate = () => {
     if (enrollmentData?.created_at) {
-      return new Date(enrollmentData.created_at).toLocaleDateString();
+      return getSafeDate(enrollmentData.created_at).toLocaleDateString();
     }
     return null;
   };
@@ -161,12 +182,35 @@ export default function CourseDetailPage() {
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-6">
         <div className="max-w-6xl mx-auto">
           <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-gray-200 rounded w-2/3 mb-4"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="h-64 bg-gray-200 rounded"></div>
-              <div className="h-64 bg-gray-200 rounded"></div>
-              <div className="h-64 bg-gray-200 rounded"></div>
+            {/* Header Skeleton */}
+            <div className="bg-white rounded-2xl shadow-xl p-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="h-64 bg-gray-200 rounded-xl"></div>
+                <div className="space-y-4">
+                  <div className="h-8 bg-gray-200 rounded w-3/4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-full"></div>
+                  <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+                    {[1, 2, 3, 4].map(n => (
+                      <div key={n} className="h-4 bg-gray-200 rounded"></div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Content Skeleton */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {[1, 2].map(n => (
+                <div key={n} className="bg-white rounded-2xl shadow-xl p-6">
+                  <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div>
+                  <div className="space-y-2">
+                    {[1, 2, 3].map(m => (
+                      <div key={m} className="h-4 bg-gray-200 rounded"></div>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -176,12 +220,14 @@ export default function CourseDetailPage() {
 
   if (!course) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-6">
-        <div className="max-w-6xl mx-auto text-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-6 flex items-center justify-center">
+        <div className="max-w-md text-center">
+          <div className="text-6xl mb-4">📚</div>
           <h1 className="text-2xl font-bold text-gray-800 mb-4">Course not found</h1>
+          <p className="text-gray-600 mb-6">The course you're looking for doesn't exist or you don't have access to it.</p>
           <button
             onClick={() => router.push("/dashboard/student/courses")}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
           >
             Back to Courses
           </button>
@@ -243,7 +289,7 @@ export default function CourseDetailPage() {
                 </div>
                 <div className="flex items-center text-gray-600">
                   <FaCalendar className="mr-2 text-purple-500" />
-                  <span>{new Date(course.created_at!).toLocaleDateString()}</span>
+                  <span>{getSafeDate(course.created_at).toLocaleDateString()}</span>
                 </div>
               </div>
 
@@ -323,7 +369,9 @@ export default function CourseDetailPage() {
             </div>
             <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
               <div
-                className="bg-green-500 h-3 rounded-full transition-all duration-500"
+                className={`h-3 rounded-full transition-all duration-500 ${
+                  userProgress === 100 ? 'bg-green-500' : 'bg-blue-500'
+                }`}
                 style={{ width: `${userProgress}%` }}
               />
             </div>
@@ -332,9 +380,15 @@ export default function CourseDetailPage() {
               {userProgress === 100 && " 🎉 Course Completed!"}
             </p>
             {enrollmentData && (
-              <div className="mt-3 grid grid-cols-2 gap-4 text-xs text-gray-500">
-                <div>Enrolled: {getEnrollmentDate()}</div>
-                <div>Last activity: {enrollmentData.updated_at ? new Date(enrollmentData.updated_at).toLocaleDateString() : 'Recently'}</div>
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-500">
+                <div className="flex items-center">
+                  <FaCalendar className="mr-1" />
+                  Enrolled: {getEnrollmentDate()}
+                </div>
+                <div className="flex items-center">
+                  <FaCheckCircle className="mr-1" />
+                  Last activity: {enrollmentData.updated_at ? getSafeDate(enrollmentData.updated_at).toLocaleDateString() : 'Recently'}
+                </div>
               </div>
             )}
           </div>
@@ -443,7 +497,7 @@ export default function CourseDetailPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Last Updated</span>
-                <span className="font-medium">{new Date(course.updated_at!).toLocaleDateString()}</span>
+                <span className="font-medium">{getSafeDate(course.updated_at).toLocaleDateString()}</span>
               </div>
             </div>
           </div>

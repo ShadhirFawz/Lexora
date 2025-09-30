@@ -132,11 +132,11 @@ export default function StudentCoursesPage() {
   });
 
   const handleContinueLearning = (course: EnrolledCourse) => {
-    router.push(`/courses/${course.id}/learn`);
+    router.push(`/dashboard/student/courses/${course.id}`);
   };
 
   const handleViewCourse = (course: EnrolledCourse) => {
-    router.push(`/courses/${course.id}`);
+    router.push(`/dashboard/student/courses/${course.id}`);
   };
 
   if (loading) {
@@ -302,8 +302,11 @@ export default function StudentCoursesPage() {
           <div className="bg-white rounded-2xl shadow-sm p-2 flex gap-2">
             {[
               { key: 'all', label: 'All Courses', count: courses.length },
-              { key: 'in-progress', label: 'In Progress', count: courses.filter(c => parseFloat(c.pivot?.progress_percent || '0') > 0 && parseFloat(c.pivot?.progress_percent || '0') < 100).length },
-              { key: 'completed', label: 'Completed', count: courses.filter(c => parseFloat(c.pivot?.progress_percent || '0') === 100).length }
+              { key: 'in-progress', label: 'In Progress', count: courses.filter(c => {
+                const progress = getStudentProgress(c).progress;
+                return progress > 0 && progress < 100;
+              }).length },
+              { key: 'completed', label: 'Completed', count: courses.filter(c => getStudentProgress(c).progress === 100).length }
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -339,7 +342,7 @@ export default function StudentCoursesPage() {
                   : `You don't have any ${activeTab.replace('-', ' ')} courses yet.`}
               </p>
               <button
-                onClick={() => router.push('/courses')}
+                onClick={() => router.push('/dashboard/student/courses')}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-105 shadow-lg"
               >
                 Browse Available Courses
@@ -388,7 +391,7 @@ export default function StudentCoursesPage() {
                       />
                     ) : (
                       <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white text-xl font-bold shadow-sm">
-                        {getProgressIcon(parseFloat(course.pivot?.progress_percent || '0'))}
+                        {getProgressIcon(getStudentProgress(course).progress)}
                       </div>
                     )}
                     
@@ -499,7 +502,7 @@ export default function StudentCoursesPage() {
                       className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-2"
                     >
                       <PlayCircleIcon className="w-5 h-5" />
-                      {parseFloat(selectedCourse.pivot?.progress_percent || '0') === 100 ? 'Review Course' : 'Continue Learning'}
+                      {getStudentProgress(selectedCourse).progress === 100 ? 'Review Course' : 'Continue Learning'}
                       <ArrowRightIcon className="w-4 h-4" />
                     </button>
                     <button
