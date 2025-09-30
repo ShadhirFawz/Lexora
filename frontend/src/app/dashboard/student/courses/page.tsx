@@ -360,7 +360,7 @@ export default function StudentCoursesPage() {
             >
               <div className="flex justify-between items-center mb-2">
                 <h2 className="text-2xl font-bold text-gray-900 font-sans">
-                  My Courses
+                  Available Courses
                 </h2>
                 <span className="text-sm text-gray-500">
                   {filteredCourses.length} course{filteredCourses.length !== 1 ? 's' : ''}

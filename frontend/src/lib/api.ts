@@ -145,6 +145,8 @@ export interface CourseComment {
   replies?: CourseComment[];
   created_at?: string;
   updated_at?: string;
+  likes_count?: number;
+  is_liked?: boolean; 
 }
 
 // Auth API calls

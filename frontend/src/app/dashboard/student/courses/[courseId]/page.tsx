@@ -2,8 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { studentCourseApi, courseApi, Course, Chapter } from "@/lib/api";
-import { FaBookOpen, FaCheckCircle, FaUser, FaChalkboardTeacher, FaUsers, FaCalendar, FaStar, FaPlay, FaLock } from "react-icons/fa";
+import { studentCourseApi, courseApi, Course, Chapter, CourseComment, courseCommentApi } from "@/lib/api";
+import { 
+  FaBookOpen, 
+  FaCheckCircle, 
+  FaUser, 
+  FaChalkboardTeacher, 
+  FaUsers, 
+  FaCalendar, 
+  FaStar,
+  FaHeart,
+  FaChevronDown, 
+  FaChevronUp, 
+  FaPlay, 
+  FaLock 
+} from "react-icons/fa";
 
 interface CourseDetail extends Course {
   chapters?: Chapter[];
@@ -44,6 +57,12 @@ export default function CourseDetailPage() {
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [userProgress, setUserProgress] = useState<number>(0);
   const [enrollmentData, setEnrollmentData] = useState<any>(null);
+  const [comments, setComments] = useState<CourseComment[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [likingCommentId, setLikingCommentId] = useState<number | null>(null);
+  const [expandedComments, setExpandedComments] = useState<{ [key: number]: boolean }>({});
+
 
   // Utility function to safely parse a date string or provide a fallback
   const getSafeDate = (dateString: string | undefined | null, fallback: string = new Date().toISOString()): Date => {
@@ -84,6 +103,10 @@ export default function CourseDetailPage() {
           }
         }
 
+        // Fetch comments after course data is loaded
+        const commentsData = await courseCommentApi.getComments(courseId);
+        setComments(commentsData);
+
         console.log('Course data loaded:', {
           isEnrolled: response.enrollment_status.is_enrolled,
           enrollmentData: response.enrollment_status.enrollment_data,
@@ -107,6 +130,110 @@ export default function CourseDetailPage() {
 
     fetchCourseData();
   }, [courseId, router]);
+
+  const refreshComments = async () => {
+    try {
+      const commentsData = await courseCommentApi.getComments(courseId);
+      setComments(commentsData);
+    } catch (error) {
+      console.error("Failed to load comments:", error);
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!newComment.trim()) return;
+    
+    try {
+      setSubmittingComment(true);
+      await courseCommentApi.addComment(courseId, newComment.trim());
+      
+      // Refresh comments
+      await refreshComments();
+      setNewComment('');
+      
+    } catch (error: any) {
+      console.error("Failed to add comment:", error);
+      alert(error.message || "Failed to add comment");
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+  
+  const toggleReplies = (commentId: number) => {
+    setExpandedComments((prev) => ({
+      ...prev,
+      [commentId]: !prev[commentId],
+    }));
+  };
+
+  const handleToggleLike = async (commentId: number) => {
+    // take a snapshot so we can revert if the request fails
+    const snapshot = comments;
+
+    // find whether this item is currently liked (search top-level comments and replies)
+    let currentlyLiked = false;
+    for (const c of snapshot) {
+      if (c.id === commentId) {
+        currentlyLiked = !!c.is_liked;
+        break;
+      }
+      if (c.replies && c.replies.some(r => r.id === commentId)) {
+        const reply = c.replies.find(r => r.id === commentId)!;
+        currentlyLiked = !!reply.is_liked;
+        break;
+      }
+    }
+
+    // build optimistic state (use ?? 0 to guard likes_count)
+    const optimistic = snapshot.map(c => {
+      if (c.id === commentId) {
+        return {
+          ...c,
+          is_liked: !currentlyLiked,
+          likes_count: (c.likes_count ?? 0) + (currentlyLiked ? -1 : 1),
+        };
+      }
+
+      if (c.replies && c.replies.some(r => r.id === commentId)) {
+        return {
+          ...c,
+          replies: c.replies!.map(r =>
+            r.id === commentId
+              ? { ...r, is_liked: !currentlyLiked, likes_count: (r.likes_count ?? 0) + (currentlyLiked ? -1 : 1) }
+              : r
+          ),
+        };
+      }
+
+      return c;
+    });
+
+    // apply optimistic UI
+    setComments(optimistic);
+    setLikingCommentId(commentId);
+
+    try {
+      await courseCommentApi.toggleLike(commentId);
+      // success -> we leave optimistic state as-is
+    } catch (error: any) {
+      console.error("Failed to toggle like:", error);
+      alert(error?.message || "Failed to update like");
+      // revert to snapshot
+      setComments(snapshot);
+    } finally {
+      setLikingCommentId(null);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
   const handleEnroll = async () => {
     if (!confirm("Are you sure you want to enroll in this course?")) return;
@@ -212,6 +339,22 @@ export default function CourseDetailPage() {
                 </div>
               ))}
             </div>
+
+            <div className="bg-white rounded-2xl shadow-xl p-6">
+              <div className="h-6 bg-gray-200 rounded w-1/3 mb-6"></div>
+              <div className="space-y-4">
+                {[1, 2, 3].map(n => (
+                  <div key={n} className="flex space-x-4">
+                    <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                      <div className="h-3 bg-gray-200 rounded w-full"></div>
+                      <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -301,7 +444,9 @@ export default function CourseDetailPage() {
                       {course.instructor.name?.charAt(0) || "I"}
                     </div>
                     <div className="ml-4">
-                      <p className="font-semibold text-gray-900">{course.instructor.name}</p>
+                      <p className="font-semibold text-gray-900"
+                          style={{fontFamily: "'PT Sans', 'Tahoma', sans-serif" }}
+                      >{course.instructor.name}</p>
                       <p className="text-sm text-gray-600">{course.instructor.email}</p>
                       <p className="text-xs text-blue-600 capitalize">{course.instructor.role}</p>
                     </div>
@@ -334,13 +479,15 @@ export default function CourseDetailPage() {
                     <button
                       onClick={handleUnenroll}
                       disabled={enrolling}
-                      className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors disabled:opacity-50"
+                      className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 cursor-pointer rounded-lg font-semibold transition-colors disabled:opacity-50"
+                      style={{fontFamily: "'Segoe UI Variable', 'system-ui', sans-serif" }}
                     >
                       {enrolling ? "Unenrolling..." : "Unenroll from Course"}
                     </button>
                     <button
                       onClick={() => course.chapters?.[0] && handleChapterClick(course.chapters[0])}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors flex items-center"
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 cursor-pointer rounded-lg font-semibold transition-colors flex items-center"
+                      style={{fontFamily: "'Segoe UI Variable', 'system-ui', sans-serif" }}
                     >
                       <FaPlay className="mr-2" />
                       {userProgress === 100 ? 'Review Course' : 'Continue Learning'}
@@ -350,7 +497,7 @@ export default function CourseDetailPage() {
                   <button
                     onClick={handleEnroll}
                     disabled={enrolling}
-                    className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold text-lg transition-colors disabled:opacity-50"
+                    className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 cursor-pointer rounded-lg font-semibold text-lg transition-colors disabled:opacity-50"
                   >
                     {enrolling ? "Enrolling..." : "Enroll in Course"}
                   </button>
@@ -481,25 +628,184 @@ export default function CourseDetailPage() {
 
           {/* Course Statistics */}
           <div className="bg-white rounded-2xl shadow-xl p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">Course Statistics</h3>
+            <h3 className="font-semibold text-black mb-4">Course Statistics</h3>
             <div className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-gray-600">Total Duration</span>
-                <span className="font-medium">{course.chapters?.length || 0} chapters</span>
+                <span className="font-medium text-cyan-800">{course.chapters?.length || 0} chapters</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Enrolled Students</span>
-                <span className="font-medium">{course.students?.length || 0}</span>
+                <span className="font-medium text-cyan-800">{course.students?.length || 0}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Course Level</span>
-                <span className="font-medium">Beginner to Intermediate</span>
+                <span className="font-medium text-cyan-800">Beginner to Intermediate</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Last Updated</span>
-                <span className="font-medium">{getSafeDate(course.updated_at).toLocaleDateString()}</span>
+                <span className="font-medium text-cyan-800">{getSafeDate(course.updated_at).toLocaleDateString()}</span>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Course Comments Section */}
+        <div className="bg-white rounded-2xl shadow-xl p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold text-gray-900">Course Discussions</h2>
+            <span className="text-sm text-gray-500">{comments.length} comments</span>
+          </div>
+
+          {/* Add Comment Form */}
+          {isEnrolled ? (
+            <div className="mb-8">
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Share your thoughts about this course..."
+                className="w-full px-4 py-3 text-gray-700 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500"
+                rows={3}
+              />
+              <div className="flex justify-end mt-3">
+                <button
+                  onClick={handleAddComment}
+                  disabled={submittingComment || !newComment.trim()}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 cursor-pointer rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submittingComment ? "Posting..." : "Post Comment"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 text-center">
+              <p className="text-yellow-700">Please enroll in the course to participate in discussions.</p>
+            </div>
+          )}
+
+          {/* Comments List */}
+          <div className="space-y-6">
+            {comments.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <FaBookOpen className="text-4xl mx-auto mb-3 text-gray-300" />
+                <p>No comments yet. Be the first to share your thoughts!</p>
+              </div>
+            ) : (
+              comments.map((comment) => {
+                const showReplies = !!expandedComments[comment.id];
+                const isCommentLiked = !!comment.is_liked;
+                const commentLikes = comment.likes_count ?? 0;
+
+                return (
+                  <div key={comment.id} className="border-b border-gray-200 pb-6 last:border-b-0">
+                    <div className="flex space-x-4">
+                      <div className="flex-shrink-0">
+                        <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                          {comment.user?.name?.charAt(0) || "U"}
+                        </div>
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <span className="font-semibold text-gray-900">{comment.user?.name}</span>
+                            <span className="ml-2 text-sm text-gray-500 capitalize">({comment.user?.role})</span>
+                          </div>
+                          <span className="text-sm text-gray-400">{formatDate(comment.created_at || "")}</span>
+                        </div>
+
+                        <p className="text-gray-700 mb-3 whitespace-pre-wrap">{comment.content}</p>
+
+                        <div className="flex items-center space-x-4 text-sm">
+                          {/* Parent comment like button: now shows spinner, disables while loading, and has hover effect even when liked */}
+                          <button
+                            onClick={() => handleToggleLike(comment.id)}
+                            disabled={likingCommentId === comment.id}
+                            aria-pressed={isCommentLiked}
+                            className="flex items-center space-x-1 transition-transform duration-150 cursor-pointer focus:outline-none"
+                          >
+                            {likingCommentId === comment.id ? (
+                              <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full cursor-pointer animate-spin" />
+                            ) : (
+                              <FaHeart
+                                className={`w-4 h-4 ${
+                                  isCommentLiked
+                                    ? "text-red-500 hover:text-amber-50"
+                                    : "text-gray-500 hover:text-red-500"
+                                }`}
+                                color={isCommentLiked ? "#ef4444" : undefined}
+                              />
+                            )}
+                            <span style={{color: "GrayText"}}>{commentLikes}</span>
+                          </button>
+
+                          {comment.replies && comment.replies.length > 0 && (
+                            <button
+                              onClick={() => toggleReplies(comment.id)}
+                              className="flex items-center space-x-1 cursor-pointer text-gray-500 hover:text-blue-600"
+                            >
+                              {showReplies ? <FaChevronUp className="w-4 h-4" /> : <FaChevronDown className="w-4 h-4" />}
+                              <span>{comment.replies.length} replies</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Replies - render only when expanded */}
+                    {showReplies && comment.replies && comment.replies.length > 0 && (
+                      <div className="ml-14 mt-4 space-y-4 border-l-2 border-gray-100 pl-4">
+                        {comment.replies.map((reply) => {
+                          const isReplyLiked = !!reply.is_liked;
+                          const replyLikes = reply.likes_count ?? 0;
+
+                          return (
+                            <div key={reply.id} className="flex space-x-3">
+                              <div className="flex-shrink-0">
+                                <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center text-white font-semibold text-xs">
+                                  {reply.user?.name?.charAt(0) || "U"}
+                                </div>
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between mb-1">
+                                  <div>
+                                    <span className="font-medium text-gray-900 text-sm">{reply.user?.name}</span>
+                                    <span className="ml-2 text-xs text-gray-500 capitalize">({reply.user?.role})</span>
+                                  </div>
+                                  <span className="text-xs text-gray-400">{formatDate(reply.created_at || "")}</span>
+                                </div>
+
+                                <p className="text-gray-600 text-sm whitespace-pre-wrap">{reply.content}</p>
+
+                                {/* Reply like button (already working) - kept consistent style */}
+                                <button
+                                  onClick={() => handleToggleLike(reply.id)}
+                                  disabled={likingCommentId === reply.id}
+                                  className="flex items-center cursor-pointer space-x-1 text-xs mt-2 transition-transform duration-150 focus:outline-none"
+                                  aria-pressed={isReplyLiked}
+                                >
+                                  {likingCommentId === reply.id ? (
+                                    <div className="w-3 h-3 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                                  ) : (
+                                    <FaHeart
+                                      className={`w-3 h-3 cursor-pointer ${
+                                        isReplyLiked ? "text-red-500 hover:text-red-600" : "text-gray-500 hover:text-red-500"
+                                      }`}
+                                      color={isReplyLiked ? "#ef4444" : undefined}
+                                    />
+                                  )}
+                                  <span style={{color: "GrayText"}}>{replyLikes}</span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>

@@ -6,6 +6,8 @@ use App\Models\Course;
 use App\Models\CourseComment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class CourseCommentController extends Controller
 {
@@ -33,12 +35,51 @@ class CourseCommentController extends Controller
 
     public function index($courseId)
     {
-        $comments = CourseComment::where('course_id', $courseId)
-            ->whereNull('parent_id')
-            ->with(['user:id,name', 'replies.user:id,name'])
-            ->get();
+        try {
+            $userId = Auth::id();
 
-        return response()->json($comments);
+            // Get all comments for this course (both main and replies)
+            $allComments = CourseComment::where('course_id', $courseId)
+                ->with(['user:id,name,role'])
+                ->get();
+
+            // Get all comment IDs
+            $commentIds = $allComments->pluck('id')->toArray();
+
+            // Get likes count for all comments in one query
+            $likesCounts = DB::table('course_comment_likes')
+                ->whereIn('course_comment_id', $commentIds)
+                ->select('course_comment_id', DB::raw('COUNT(*) as count'))
+                ->groupBy('course_comment_id')
+                ->pluck('count', 'course_comment_id');
+
+            // Get which comments are liked by current user
+            $likedCommentIds = DB::table('course_comment_likes')
+                ->whereIn('course_comment_id', $commentIds)
+                ->where('user_id', $userId)
+                ->pluck('course_comment_id')
+                ->toArray();
+
+            // Process all comments
+            $allComments->each(function ($comment) use ($likesCounts, $likedCommentIds) {
+                $comment->likes_count = $likesCounts[$comment->id] ?? 0;
+                $comment->is_liked = in_array($comment->id, $likedCommentIds);
+            });
+
+            // Separate main comments and replies
+            $mainComments = $allComments->where('parent_id', null)->values();
+            $allReplies = $allComments->where('parent_id', '!=', null);
+
+            // Attach replies to main comments
+            $mainComments->each(function ($comment) use ($allReplies) {
+                $comment->replies = $allReplies->where('parent_id', $comment->id)->values();
+            });
+
+            return response()->json($mainComments);
+        } catch (\Exception $e) {
+            Log::error('Error fetching comments: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to load comments'], 500);
+        }
     }
 
     public function toggleLike($commentId)
