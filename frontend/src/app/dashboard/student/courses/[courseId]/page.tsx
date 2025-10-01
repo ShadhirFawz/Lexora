@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import ReplyModal from "@/components/courses/ReplyModal";
 import { studentCourseApi, courseApi, Course, Chapter, CourseComment, courseCommentApi } from "@/lib/api";
 import { 
   FaBookOpen, 
@@ -62,6 +63,8 @@ export default function CourseDetailPage() {
   const [submittingComment, setSubmittingComment] = useState(false);
   const [likingCommentId, setLikingCommentId] = useState<number | null>(null);
   const [expandedComments, setExpandedComments] = useState<{ [key: number]: boolean }>({});
+  const [replyModalOpen, setReplyModalOpen] = useState(false);
+  const [selectedComment, setSelectedComment] = useState<CourseComment | null>(null);
 
 
   // Utility function to safely parse a date string or provide a fallback
@@ -164,6 +167,20 @@ export default function CourseDetailPage() {
       ...prev,
       [commentId]: !prev[commentId],
     }));
+  };
+
+  const handleOpenReply = (comment: CourseComment) => {
+    setSelectedComment(comment);
+    setReplyModalOpen(true);
+  };
+
+  const handleCloseReply = () => {
+    setReplyModalOpen(false);
+    setSelectedComment(null);
+  };
+
+  const handleReplyPosted = () => {
+    refreshComments(); // Refresh comments after successful reply
   };
 
   const handleToggleLike = async (commentId: number) => {
@@ -739,6 +756,17 @@ export default function CourseDetailPage() {
                             <span style={{color: "GrayText"}}>{commentLikes}</span>
                           </button>
 
+                          {/* Reply Button - NEW */}
+                          <button
+                            onClick={() => handleOpenReply(comment)}
+                            className="flex items-center space-x-1 text-gray-500 hover:text-blue-600 transition-colors cursor-pointer"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                            </svg>
+                            <span>Reply</span>
+                          </button>
+
                           {comment.replies && comment.replies.length > 0 && (
                             <button
                               onClick={() => toggleReplies(comment.id)}
@@ -809,6 +837,16 @@ export default function CourseDetailPage() {
           </div>
         </div>
       </div>
+      {/* Reply Modal */}
+      {selectedComment && (
+        <ReplyModal
+          isOpen={replyModalOpen}
+          onClose={handleCloseReply}
+          parentComment={selectedComment}
+          courseId={courseId}
+          onReplyPosted={handleReplyPosted}
+        />
+      )}
     </div>
   );
 }

@@ -75,6 +75,14 @@ export default function AuthLayout({ children, onAnimationComplete }: AuthLayout
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-gradient-to-br from-gray-700 via-gray-200 to-gray-700 overflow-hidden">
+      <div className="absolute top-4 right-4 z-20">
+        <Image
+          className="w-40 h-auto"
+          src={BrandLogo}
+          alt="Brand Logo"
+          priority
+        />
+      </div>
       {/* Background for mobile - shown above content */}
       <div className="lg:hidden relative h-64 md:h-80 w-full">
         <AuthBackground isMobile={true} />

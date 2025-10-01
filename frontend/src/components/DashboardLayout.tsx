@@ -40,7 +40,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         <nav className="flex flex-col gap-4">
           <button
             onClick={() => router.push("/dashboard")}
-            className="flex items-center gap-2 hover:text-yellow-300 cursor-pointer"
+            className="flex items-center gap-2 hover:text-yellow-300 cursor-pointer z-50"
           >
             <FaChalkboardTeacher /> Dashboard
           </button>

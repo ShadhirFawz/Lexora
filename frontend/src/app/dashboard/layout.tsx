@@ -7,6 +7,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
   const [role, setRole] = useState<string | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Read user role from localStorage
   useEffect(() => {
@@ -20,8 +21,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [router]);
 
-  // Logout
-  const handleLogout = () => {
+  // Logout with loading state
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+
+    // simulate async action (e.g. API logout) before redirect
+    await new Promise((resolve) => setTimeout(resolve, 800));
+
     localStorage.removeItem("token");
     localStorage.removeItem("role");
     router.push("/login");
@@ -58,27 +64,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               onClick={() => router.push(item.path)}
               className={`block w-full text-left px-4 py-2 rounded-lg ${
                 pathname === item.path
-                  ? "bg-indigo-500 text-white"
-                  : "text-gray-700 hover:bg-indigo-100"
+                  ? "bg-indigo-500 text-white hover:bg-indigo-400 cursor-pointer"
+                  : "text-gray-700 hover:bg-indigo-100 cursor-pointer"
               }`}
             >
               {item.label}
             </button>
           ))}
         </nav>
+
+        {/* Logout Button with Spinner */}
         <button
           onClick={handleLogout}
-          className="mt-auto bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
+          disabled={isLoggingOut}
+          className={`mt-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg cursor-pointer ${
+            isLoggingOut
+              ? "bg-gray-400 text-white cursor-not-allowed"
+              : "bg-red-500 text-white hover:bg-red-600"
+          }`}
         >
-          Logout
+          {isLoggingOut && (
+            <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+          )}
+          {isLoggingOut ? "Logging out..." : "Logout"}
         </button>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 p-8">
-        <div className="bg-white shadow-md rounded-2xl p-6">
-          {children}
-        </div>
+        <div className="bg-white shadow-md rounded-2xl p-6">{children}</div>
       </main>
     </div>
   );
