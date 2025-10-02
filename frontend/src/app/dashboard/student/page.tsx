@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { courseApi, Course } from "@/lib/api";
+import { studentCourseApi, Course, progressApi } from "@/lib/api";
 import { useRouter } from "next/navigation";
 
 interface EnrolledCourse extends Course {
@@ -39,13 +39,38 @@ export default function StudentDashboard() {
       try {
         setLoading(true);
         
-        // Fetch enrolled courses (my-courses endpoint)
-        const myCourses = await courseApi.getMyCourses();
-        setEnrolledCourses(myCourses || []);
+        // Fetch courses with enrollment status
+        const coursesResponse = await studentCourseApi.getCoursesWithEnrollment();
         
-        // Fetch all available courses (courses endpoint with pagination)
-        const allCourses: CourseResponse = await courseApi.getAllCourses();
-        setAvailableCourses(allCourses.data || []);
+        // Separate enrolled courses from available courses
+        const allCourses = coursesResponse.data || coursesResponse;
+        const enrolled = allCourses.filter((course: EnrolledCourse) => course.is_enrolled === true);
+        const available = allCourses.filter((course: EnrolledCourse) => course.is_enrolled === false);
+        
+        // Fetch progress for each enrolled course
+        const enrolledWithProgress = await Promise.all(
+          enrolled.map(async (course: EnrolledCourse) => {
+            try {
+              const progressResponse = await progressApi.getProgress(course.id);
+              return {
+                ...course,
+                // Use overall_progress from progress API for accurate progress
+                user_progress: progressResponse.course_progress?.overall_progress || 
+                              parseFloat(course.pivot?.progress_percent || '0')
+              };
+            } catch (error) {
+              console.error(`Failed to fetch progress for course ${course.id}:`, error);
+              // Fallback to pivot progress if progress API fails
+              return {
+                ...course,
+                user_progress: parseFloat(course.pivot?.progress_percent || '0')
+              };
+            }
+          })
+        );
+        
+        setEnrolledCourses(enrolledWithProgress);
+        setAvailableCourses(available);
         
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load courses');
@@ -115,8 +140,8 @@ export default function StudentDashboard() {
   }
 
   const CourseCard = ({ course, isEnrolled }: { course: Course | EnrolledCourse; isEnrolled: boolean }) => {
-    const progress = isEnrolled ? (course as EnrolledCourse).user_progress || (course as EnrolledCourse).pivot?.progress_percent : null;
-    const progressValue = progress ? parseFloat(progress.toString()) : 0;
+    // Use user_progress which now comes from progress API
+    const progressValue = isEnrolled ? (course as EnrolledCourse).user_progress || 0 : 0;
 
     const handleButtonClick = () => {
       router.push(`/dashboard/student/courses/${course.id}`);
@@ -343,7 +368,7 @@ export default function StudentDashboard() {
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-green-600 mb-2">
-                {enrolledCourses.filter(c => parseFloat((c as EnrolledCourse).pivot?.progress_percent || '0') === 100).length}
+                {enrolledCourses.filter(c => (c as EnrolledCourse).user_progress === 100).length}
               </div>
               <div className="text-gray-600">Completed Courses</div>
             </div>

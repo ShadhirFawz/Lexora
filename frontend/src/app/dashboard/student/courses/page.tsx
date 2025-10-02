@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { studentCourseApi, Course, User } from "@/lib/api";
+import { studentCourseApi, progressApi, Course, User, CourseProgress } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { 
   BookOpenIcon, 
@@ -15,6 +15,8 @@ import {
 } from "@heroicons/react/24/outline";
 
 interface EnrolledCourse extends Course {
+  is_enrolled?: boolean;
+  course_progress?: CourseProgress;
   enrollment_status?: {
     is_enrolled: boolean;
     enrollment_data: {
@@ -61,8 +63,40 @@ export default function StudentCoursesPage() {
   const loadCourses = async () => {
     try {
       setLoading(true);
-      const response = await studentCourseApi.getCoursesWithEnrollment();
-      setCourses(response.data || response);
+      
+      // Step 1: Get all courses with enrollment status
+      const coursesResponse = await studentCourseApi.getCoursesWithEnrollment();
+      let coursesData: EnrolledCourse[] = coursesResponse.data || coursesResponse;
+      
+      // Step 2: Filter only enrolled courses
+      const enrolledCourses = coursesData.filter(course => course.is_enrolled === true);
+      
+      // Step 3: Fetch progress for each enrolled course
+      const coursesWithProgress = await Promise.all(
+        enrolledCourses.map(async (course) => {
+          try {
+            const progressResponse = await progressApi.getProgress(course.id);
+            return {
+              ...course,
+              course_progress: progressResponse.course_progress
+            };
+          } catch (error) {
+            console.warn(`Could not fetch progress for course ${course.id}:`, error);
+            return {
+              ...course,
+              course_progress: {
+                total_chapters: course.chapters?.length || 0,
+                completed_chapters: 0,
+                course_percent: 0,
+                overall_progress: 0,
+                chapters_progress: []
+              }
+            };
+          }
+        })
+      );
+      
+      setCourses(coursesWithProgress);
     } catch (err: any) {
       setError(err.message || "Failed to load courses");
     } finally {
@@ -71,25 +105,34 @@ export default function StudentCoursesPage() {
   };
 
   const getSafeDate = (dateString: string | undefined | null, fallback: string = new Date().toISOString()): Date => {
-      if (!dateString) return new Date(fallback);
-      return new Date(dateString);
-    };
+    if (!dateString) return new Date(fallback);
+    return new Date(dateString);
+  };
 
   const getStudentProgress = (course: EnrolledCourse): { progress: number; enrollmentDate: string } => {
-    // For enrolled courses, get progress from students array pivot
+    // Get progress from course_progress (from progress API)
+    if (course.course_progress) {
+      return {
+        progress: course.course_progress.overall_progress, // Use overall_progress which considers partial progress
+        enrollmentDate: course.created_at || new Date().toISOString()
+      };
+    }
+    
+    // Fallback: Get progress from students pivot data
     if (course.students && course.students.length > 0) {
-      const studentData = course.students.find(student => 
+      const currentUser = course.students.find(student => 
+        // You might need to get the current user ID from your auth context
         student.pivot && student.pivot.progress_percent !== undefined
       );
-      if (studentData) {
+      if (currentUser) {
         return {
-          progress: parseFloat(studentData.pivot.progress_percent),
-          enrollmentDate: studentData.pivot.created_at
+          progress: parseFloat(currentUser.pivot.progress_percent),
+          enrollmentDate: currentUser.pivot.created_at
         };
       }
     }
     
-    // For detailed course view with enrollment_status
+    // Fallback: Get from enrollment_status
     if (course.enrollment_status?.enrollment_data) {
       return {
         progress: parseFloat(course.enrollment_status.enrollment_data.progress_percent),
@@ -360,7 +403,7 @@ export default function StudentCoursesPage() {
             >
               <div className="flex justify-between items-center mb-2">
                 <h2 className="text-2xl font-bold text-gray-900 font-sans">
-                  Available Courses
+                  My Enrolled Courses
                 </h2>
                 <span className="text-sm text-gray-500">
                   {filteredCourses.length} course{filteredCourses.length !== 1 ? 's' : ''}
@@ -401,7 +444,7 @@ export default function StudentCoursesPage() {
                           {course.title}
                         </h3>
                         <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full ml-2 flex-shrink-0">
-                          {parseFloat(course.pivot?.progress_percent || '0').toFixed(0)}%
+                          {getStudentProgress(course).progress.toFixed(0)}%
                         </span>
                       </div>
                       
@@ -462,7 +505,7 @@ export default function StudentCoursesPage() {
                       />
                     ) : (
                       <div className="w-full h-48 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center text-white text-6xl mb-4 shadow-sm">
-                        {getProgressIcon(parseFloat(selectedCourse.pivot?.progress_percent || '0'))}
+                        {getProgressIcon(getStudentProgress(selectedCourse).progress)}
                       </div>
                     )}
                     

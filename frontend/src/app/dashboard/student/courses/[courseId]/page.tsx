@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ReplyModal from "@/components/courses/ReplyModal";
-import { studentCourseApi, courseApi, Course, Chapter, CourseComment, courseCommentApi } from "@/lib/api";
+import { studentCourseApi, courseApi, Course, Chapter, CourseComment, courseCommentApi, progressApi } from "@/lib/api";
 import { 
   FaBookOpen, 
   FaCheckCircle, 
@@ -66,7 +66,6 @@ export default function CourseDetailPage() {
   const [replyModalOpen, setReplyModalOpen] = useState(false);
   const [selectedComment, setSelectedComment] = useState<CourseComment | null>(null);
 
-
   // Utility function to safely parse a date string or provide a fallback
   const getSafeDate = (dateString: string | undefined | null, fallback: string = new Date().toISOString()): Date => {
     if (!dateString) return new Date(fallback);
@@ -90,20 +89,8 @@ export default function CourseDetailPage() {
         setEnrollmentData(response.enrollment_status.enrollment_data);
 
         // Calculate progress if enrolled
-        if (response.enrollment_status.is_enrolled && response.course.chapters) {
-          const progressData = response.enrollment_status.progress_data;
-          
-          if (progressData && progressData.length > 0) {
-            const completedChapters = progressData.filter((p: any) => p.is_completed).length;
-            const totalChapters = response.course.chapters.length;
-            setUserProgress(totalChapters > 0 ? Math.round((completedChapters / totalChapters) * 100) : 0);
-          } else if (response.enrollment_status.enrollment_data) {
-            // Use progress from enrollment data if available
-            const progressPercent = parseFloat(response.enrollment_status.enrollment_data.progress_percent || '0');
-            setUserProgress(progressPercent);
-          } else {
-            setUserProgress(0);
-          }
+        if (response.enrollment_status.is_enrolled) {
+          await fetchCourseProgress();
         }
 
         // Fetch comments after course data is loaded
@@ -133,6 +120,25 @@ export default function CourseDetailPage() {
 
     fetchCourseData();
   }, [courseId, router]);
+
+  // New function to fetch progress data from progress API
+  const fetchCourseProgress = async () => {
+    try {
+      const progressResponse = await progressApi.getProgress(courseId);
+      if (progressResponse.course_progress) {
+        // Use overall_progress which considers partial chapter progress
+        setUserProgress(progressResponse.course_progress.overall_progress);
+      }
+    } catch (error) {
+      console.error("Failed to fetch course progress:", error);
+      // Fallback to enrollment data progress
+      if (enrollmentData?.progress_percent) {
+        setUserProgress(parseFloat(enrollmentData.progress_percent));
+      } else {
+        setUserProgress(0);
+      }
+    }
+  };
 
   const refreshComments = async () => {
     try {
@@ -311,6 +317,8 @@ export default function CourseDetailPage() {
 
   const getCompletedChapters = () => {
     if (!course?.chapters) return 0;
+    
+    // Calculate completed chapters based on progress percentage
     return Math.round((userProgress / 100) * course.chapters.length);
   };
 
@@ -320,6 +328,9 @@ export default function CourseDetailPage() {
     }
     return null;
   };
+
+  // Rest of your component remains the same...
+  // [Keep all the existing JSX code exactly as it is, only the progress calculation logic has changed]
 
   if (loading) {
     return (

@@ -109,12 +109,35 @@ export interface Chapter {
 }
 
 export interface Progress {
+  id: number;
+  student_id: number;
   course_id: number;
   chapter_id: number;
   is_completed: boolean;
   last_position?: number | null;
+  chapter_percent: number;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface CourseProgress {
+  total_chapters: number;
+  completed_chapters: number;
+  course_percent: number;
+  overall_progress: number;
+  chapters_progress: Array<{
+    chapter_id: number;
+    chapter_title: string;
+    chapter_percent: number;
+    is_completed: boolean;
+    last_position: number | null;
+  }>;
+}
+
+export interface ProgressResponse {
+  course: Course;
+  progress: Progress[];
+  course_progress: CourseProgress;
 }
 
 export interface Enrollment {
@@ -322,6 +345,7 @@ export const chapterApi = {
 };
 
 // Progress-related API calls
+// Progress-related API calls
 export const progressApi = {
   // Update progress
   updateProgress: (courseId: number, chapterId: number, isCompleted: boolean, lastPosition?: number, token?: string) =>
@@ -338,6 +362,15 @@ export const progressApi = {
     if (!id) throw new Error("Course ID is required");
     return apiFetch(`/progress/${id}`, "GET", null, token);
   },
+
+  // Auto-save progress (for automatic position tracking)
+  autoSaveProgress: (courseId: number, chapterId: number, lastPosition: number, token?: string) =>
+    apiFetch("/progress", "POST", {
+      course_id: courseId,
+      chapter_id: chapterId,
+      is_completed: false, // Auto-save doesn't mark as completed
+      last_position: lastPosition,
+    }, token),
 };
 
 // Chapter Comment-related API calls
