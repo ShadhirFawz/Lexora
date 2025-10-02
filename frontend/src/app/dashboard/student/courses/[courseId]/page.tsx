@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ReplyModal from "@/components/courses/ReplyModal";
-import { studentCourseApi, courseApi, Course, Chapter, CourseComment, courseCommentApi, progressApi } from "@/lib/api";
+import { studentCourseApi, courseApi, Course, Chapter, CourseComment, courseCommentApi, progressApi, courseReactionApi } from "@/lib/api";
 import { 
   FaBookOpen, 
   FaCheckCircle, 
@@ -65,6 +65,9 @@ export default function CourseDetailPage() {
   const [expandedComments, setExpandedComments] = useState<{ [key: number]: boolean }>({});
   const [replyModalOpen, setReplyModalOpen] = useState(false);
   const [selectedComment, setSelectedComment] = useState<CourseComment | null>(null);
+  const [reactions, setReactions] = useState<any[]>([]);
+  const [userReaction, setUserReaction] = useState<string | null>(null);
+  const [reacting, setReacting] = useState(false);
 
   // Utility function to safely parse a date string or provide a fallback
   const getSafeDate = (dateString: string | undefined | null, fallback: string = new Date().toISOString()): Date => {
@@ -96,6 +99,16 @@ export default function CourseDetailPage() {
         // Fetch comments after course data is loaded
         const commentsData = await courseCommentApi.getComments(courseId);
         setComments(commentsData);
+
+        // Add this inside fetchCourseData function, after fetching comments
+        const reactionsData = await courseReactionApi.getReactions(parseInt(courseId));
+        setReactions(reactionsData);
+
+        // Find current user's reaction
+        const currentUserReaction = reactionsData.find((reaction: any) => 
+          reaction.student_id === response.enrollment_status.enrollment_data?.student_id
+        );
+        setUserReaction(currentUserReaction?.emoji_type || null);
 
         console.log('Course data loaded:', {
           isEnrolled: response.enrollment_status.is_enrolled,
@@ -248,6 +261,35 @@ export default function CourseDetailPage() {
     }
   };
 
+  const handleReaction = async (emojiType: string) => {
+      if (reacting) return;
+      
+      try {
+        setReacting(true);
+        
+        setUserReaction(emojiType);
+        
+        await courseReactionApi.toggleReaction(parseInt(courseId), emojiType);
+        
+        // Refresh reactions to get updated counts
+        const updatedReactions = await courseReactionApi.getReactions(parseInt(courseId));
+        setReactions(updatedReactions);
+        
+      } catch (error: any) {
+        console.error("Failed to update reaction:", error);
+        // Revert optimistic update on error
+        const previousReaction = userReaction;
+        setUserReaction(previousReaction);
+        alert(error.message || "Failed to update reaction");
+      } finally {
+        setReacting(false);
+      }
+    };
+
+  const getReactionCount = (emojiType: string) => {
+    return reactions.filter(reaction => reaction.emoji_type === emojiType).length;
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -327,6 +369,17 @@ export default function CourseDetailPage() {
       return getSafeDate(enrollmentData.created_at).toLocaleDateString();
     }
     return null;
+  };
+
+  const getEmojiIcon = (emojiType: string) => {
+    const emojiMap: { [key: string]: string } = {
+      love: '❤️',
+      thumbs_up: '👍',
+      happy: '😊',
+      thumbs_down: '👎',
+      unsatisfied: '😞'
+    };
+    return emojiMap[emojiType] || '❓';
   };
 
   // Rest of your component remains the same...
@@ -445,7 +498,7 @@ export default function CourseDetailPage() {
               <p className="text-gray-600 text-lg mb-6">{course.description}</p>
 
               {/* Course Stats */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 mb-6">
                 <div className="flex items-center text-gray-600">
                   <FaBookOpen className="mr-2 text-blue-500" />
                   <span>{course.chapters?.length || 0} Chapters</span>
@@ -454,9 +507,37 @@ export default function CourseDetailPage() {
                   <FaUsers className="mr-2 text-green-500" />
                   <span>{course.students?.length || 0} Students</span>
                 </div>
-                <div className="flex items-center text-gray-600">
-                  <FaStar className="mr-2 text-yellow-500" />
-                  <span>{course.total_comments || 0} Reviews</span>
+                {/* Reactions Section */}
+                <div className="pt-4 border-gray-200">
+                  <div className="flex space-x-2">
+                    {[
+                      { type: 'love', icon: '❤️', label: 'Love' },
+                      { type: 'thumbs_up', icon: '👍', label: 'Thumbs Up' },
+                      { type: 'happy', icon: '😊', label: 'Happy' },
+                      { type: 'thumbs_down', icon: '👎', label: 'Thumbs Down' },
+                      { type: 'unsatisfied', icon: '😞', label: 'Unsatisfied' }
+                    ].map((reaction) => (
+                      <button
+                        key={reaction.type}
+                        onClick={() => isEnrolled && handleReaction(reaction.type)}
+                        disabled={!isEnrolled || reacting}
+                        className={`flex flex-col items-center p-1 rounded-lg transition-all ${
+                          userReaction === reaction.type 
+                            ? 'bg-blue-100 border-2 border-blue-500' 
+                            : 'bg-gray-100 border-2 border-transparent hover:bg-gray-200'
+                        } ${!isEnrolled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                      >
+                        <span className="text-2xl mb-1">{reaction.icon}</span>
+                        <span className="text-xs text-gray-600">{getReactionCount(reaction.type)}</span>
+                      </button>
+                    ))}
+                  </div>
+                  
+                  {!isEnrolled && (
+                    <p className="text-xs text-gray-500 mt-2 text-center">
+                      Enroll in the course to react
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center text-gray-600">
                   <FaCalendar className="mr-2 text-purple-500" />
@@ -674,6 +755,30 @@ export default function CourseDetailPage() {
                 <span className="text-gray-600">Last Updated</span>
                 <span className="font-medium text-cyan-800">{getSafeDate(course.updated_at).toLocaleDateString()}</span>
               </div>
+            </div>
+          </div>
+
+          {/* Course Statistics with Reactions */}
+          <div className="bg-white rounded-2xl shadow-xl p-6">
+            <h3 className="font-semibold text-black mb-4">Course Statistics & Reactions</h3>
+            <div className="space-y-4">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Total Duration</span>
+                <span className="font-medium text-cyan-800">{course.chapters?.length || 0} chapters</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Enrolled Students</span>
+                <span className="font-medium text-cyan-800">{course.students?.length || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Course Level</span>
+                <span className="font-medium text-cyan-800">Beginner to Intermediate</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Last Updated</span>
+                <span className="font-medium text-cyan-800">{getSafeDate(course.updated_at).toLocaleDateString()}</span>
+              </div>
+              
             </div>
           </div>
         </div>
