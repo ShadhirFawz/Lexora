@@ -280,6 +280,9 @@ export const courseCommentApi = {
   // Like/unlike course comment
   toggleLike: (commentId: number, token?: string) =>
     apiFetch(`/course-comments/${commentId}/like`, "POST", null, token),
+
+  deleteComment: (commentId: number, token?: string) =>
+    apiFetch(`/course-comments/${commentId}`, "DELETE", null, token),
 };
 
 // Chapter-related API calls

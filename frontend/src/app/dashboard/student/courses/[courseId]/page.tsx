@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ReplyModal from "@/components/courses/ReplyModal";
+import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import { studentCourseApi, courseApi, Course, Chapter, CourseComment, courseCommentApi, progressApi, courseReactionApi } from "@/lib/api";
 import { 
   FaBookOpen, 
@@ -68,6 +69,20 @@ export default function CourseDetailPage() {
   const [reactions, setReactions] = useState<any[]>([]);
   const [userReaction, setUserReaction] = useState<string | null>(null);
   const [reacting, setReacting] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [confirmationModal, setConfirmationModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    variant?: "danger" | "warning" | "info";
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+    variant: "danger"
+  });
 
   // Utility function to safely parse a date string or provide a fallback
   const getSafeDate = (dateString: string | undefined | null, fallback: string = new Date().toISOString()): Date => {
@@ -103,6 +118,10 @@ export default function CourseDetailPage() {
         // Add this inside fetchCourseData function, after fetching comments
         const reactionsData = await courseReactionApi.getReactions(parseInt(courseId));
         setReactions(reactionsData);
+
+        if (response.enrollment_status.enrollment_data) {
+          setCurrentUserId(response.enrollment_status.enrollment_data.student_id);
+        }
 
         // Find current user's reaction
         const currentUserReaction = reactionsData.find((reaction: any) => 
@@ -300,52 +319,65 @@ export default function CourseDetailPage() {
     });
   };
 
-  const handleEnroll = async () => {
-    if (!confirm("Are you sure you want to enroll in this course?")) return;
+  const handleEnroll = () => {
+    showConfirmation(
+      "Enroll in Course",
+      "Are you sure you want to enroll in this course?",
+      async () => {
+        try {
+          setEnrolling(true);
+          await courseApi.enroll(courseId);
+          
+          // Refresh course data using the new endpoint
+          const response: CourseWithEnrollmentResponse = await studentCourseApi.getCourseWithEnrollment(courseId);
+          setCourse(response.course);
+          setIsEnrolled(response.enrollment_status.is_enrolled);
+          setEnrollmentData(response.enrollment_status.enrollment_data);
+          
+          // Initialize progress for newly enrolled course
+          setUserProgress(0);
+          
+          alert("Successfully enrolled in the course!");
+        } catch (error: any) {
+          console.error("Enrollment error:", error);
+          alert(error.message || "Failed to enroll in the course. Please try again.");
+        } finally {
+          setEnrolling(false);
+        }
+      },
+      "info"
+    );
     
-    try {
-      setEnrolling(true);
-      await courseApi.enroll(courseId);
-      
-      // Refresh course data using the new endpoint
-      const response: CourseWithEnrollmentResponse = await studentCourseApi.getCourseWithEnrollment(courseId);
-      setCourse(response.course);
-      setIsEnrolled(response.enrollment_status.is_enrolled);
-      setEnrollmentData(response.enrollment_status.enrollment_data);
-      
-      // Initialize progress for newly enrolled course
-      setUserProgress(0);
-      
-      alert("Successfully enrolled in the course!");
-    } catch (error: any) {
-      console.error("Enrollment error:", error);
-      alert(error.message || "Failed to enroll in the course. Please try again.");
-    } finally {
-      setEnrolling(false);
-    }
+
   };
 
-  const handleUnenroll = async () => {
-    if (!confirm("Are you sure you want to unenroll from this course? Your progress will be lost.")) return;
-    
-    try {
-      setEnrolling(true);
-      await courseApi.unenroll(courseId);
-      
-      // Refresh course data using the new endpoint
-      const response: CourseWithEnrollmentResponse = await studentCourseApi.getCourseWithEnrollment(courseId);
-      setCourse(response.course);
-      setIsEnrolled(response.enrollment_status.is_enrolled);
-      setEnrollmentData(response.enrollment_status.enrollment_data);
-      setUserProgress(0);
-      
-      alert("Successfully unenrolled from the course.");
-    } catch (error: any) {
-      console.error("Unenrollment error:", error);
-      alert(error.message || "Failed to unenroll from the course. Please try again.");
-    } finally {
-      setEnrolling(false);
-    }
+  const handleUnenroll = () => {
+    showConfirmation(
+      "Unenroll from Course",
+      "Are you sure you want to unenroll from this course? Your progress will be lost.",
+
+      async () => {
+        try {
+          setEnrolling(true);
+          await courseApi.unenroll(courseId);
+          
+          // Refresh course data using the new endpoint
+          const response: CourseWithEnrollmentResponse = await studentCourseApi.getCourseWithEnrollment(courseId);
+          setCourse(response.course);
+          setIsEnrolled(response.enrollment_status.is_enrolled);
+          setEnrollmentData(response.enrollment_status.enrollment_data);
+          setUserProgress(0);
+          
+          alert("Successfully unenrolled from the course.");
+        } catch (error: any) {
+          console.error("Unenrollment error:", error);
+          alert(error.message || "Failed to unenroll from the course. Please try again.");
+        } finally {
+          setEnrolling(false);
+        }
+      },
+      "warning"
+    );
   };
 
   const handleChapterClick = (chapter: Chapter) => {
@@ -371,6 +403,36 @@ export default function CourseDetailPage() {
     return null;
   };
 
+  const handleDeleteComment = (commentId: number) => {
+    showConfirmation(
+      "Delete Comment",
+      "Are you sure you want to delete this comment? This action cannot be undone.",
+      async () => {
+        try {
+          await courseCommentApi.deleteComment(commentId);
+          await refreshComments();
+        } catch (error: any) {
+          console.error("Failed to delete comment:", error);
+          alert(error.message || "Failed to delete comment");
+        }
+      },
+      "danger"
+    );
+  };
+
+  const showConfirmation = (title: string, message: string, onConfirm: () => void, variant: "danger" | "warning" | "info" = "danger") => {
+    setConfirmationModal({
+      isOpen: true,
+      title,
+      message,
+      onConfirm: () => {
+        onConfirm();
+        setConfirmationModal(prev => ({ ...prev, isOpen: false })); // Close modal after confirmation
+      },
+      variant
+    });
+  };
+
   const getEmojiIcon = (emojiType: string) => {
     const emojiMap: { [key: string]: string } = {
       love: '❤️',
@@ -381,9 +443,6 @@ export default function CourseDetailPage() {
     };
     return emojiMap[emojiType] || '❓';
   };
-
-  // Rest of your component remains the same...
-  // [Keep all the existing JSX code exactly as it is, only the progress calculation logic has changed]
 
   if (loading) {
     return (
@@ -485,7 +544,12 @@ export default function CourseDetailPage() {
             {/* Course Info */}
             <div className="lg:col-span-2">
               <div className="flex justify-between items-start mb-4">
-                <h1 className="text-3xl font-bold text-gray-900">{course.title}</h1>
+                <h1 
+                className="text-3xl font-bold text-gray-900"
+                style={{fontFamily: "'Cambria', 'Cochin', 'Times', serif"}}
+                >
+                  {course.title}
+                </h1>
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                   course.status === 'approved' ? 'bg-green-100 text-green-800' :
                   course.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
@@ -498,7 +562,7 @@ export default function CourseDetailPage() {
               <p className="text-gray-600 text-lg mb-6">{course.description}</p>
 
               {/* Course Stats */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 mb-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 mb-6">
                 <div className="flex items-center text-gray-600">
                   <FaBookOpen className="mr-2 text-blue-500" />
                   <span>{course.chapters?.length || 0} Chapters</span>
@@ -506,6 +570,10 @@ export default function CourseDetailPage() {
                 <div className="flex items-center text-gray-600">
                   <FaUsers className="mr-2 text-green-500" />
                   <span>{course.students?.length || 0} Students</span>
+                </div>
+                <div className="flex items-center text-gray-600">
+                  <FaStar className="mr-2 text-yellow-500" />
+                  <span>{comments.length} Reviews</span>
                 </div>
                 {/* Reactions Section */}
                 <div className="pt-4 border-gray-200">
@@ -539,7 +607,7 @@ export default function CourseDetailPage() {
                     </p>
                   )}
                 </div>
-                <div className="flex items-center text-gray-600">
+                <div className="flex items-center pl-30 text-gray-600">
                   <FaCalendar className="mr-2 text-purple-500" />
                   <span>{getSafeDate(course.created_at).toLocaleDateString()}</span>
                 </div>
@@ -568,7 +636,11 @@ export default function CourseDetailPage() {
                 <div className="bg-green-50 rounded-lg p-4 mb-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-semibold text-green-900">You are enrolled in this course</p>
+                      <p className="font-bold text-green-900"
+                        style={{fontFamily: "'Manrope', 'system-ui', serif" }}
+                      >
+                        You are enrolled in this course
+                      </p>
                       <p className="text-sm text-green-700">
                         Progress: {userProgress}% • 
                         Enrolled on: {getEnrollmentDate()}
@@ -589,14 +661,14 @@ export default function CourseDetailPage() {
                       onClick={handleUnenroll}
                       disabled={enrolling}
                       className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 cursor-pointer rounded-lg font-semibold transition-colors disabled:opacity-50"
-                      style={{fontFamily: "'Segoe UI Variable', 'system-ui', sans-serif" }}
+                      style={{fontFamily: "'Cambria', 'Cochin', 'Times', serif"}}
                     >
                       {enrolling ? "Unenrolling..." : "Unenroll from Course"}
                     </button>
                     <button
                       onClick={() => course.chapters?.[0] && handleChapterClick(course.chapters[0])}
                       className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 cursor-pointer rounded-lg font-semibold transition-colors flex items-center"
-                      style={{fontFamily: "'Segoe UI Variable', 'system-ui', sans-serif" }}
+                      style={{fontFamily: "'Cambria', 'Cochin', 'Times', serif"}}
                     >
                       <FaPlay className="mr-2" />
                       {userProgress === 100 ? 'Review Course' : 'Continue Learning'}
@@ -757,30 +829,6 @@ export default function CourseDetailPage() {
               </div>
             </div>
           </div>
-
-          {/* Course Statistics with Reactions */}
-          <div className="bg-white rounded-2xl shadow-xl p-6">
-            <h3 className="font-semibold text-black mb-4">Course Statistics & Reactions</h3>
-            <div className="space-y-4">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Total Duration</span>
-                <span className="font-medium text-cyan-800">{course.chapters?.length || 0} chapters</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Enrolled Students</span>
-                <span className="font-medium text-cyan-800">{course.students?.length || 0}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Course Level</span>
-                <span className="font-medium text-cyan-800">Beginner to Intermediate</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Last Updated</span>
-                <span className="font-medium text-cyan-800">{getSafeDate(course.updated_at).toLocaleDateString()}</span>
-              </div>
-              
-            </div>
-          </div>
         </div>
 
         {/* Course Comments Section */}
@@ -844,7 +892,21 @@ export default function CourseDetailPage() {
                             <span className="font-semibold text-gray-900">{comment.user?.name}</span>
                             <span className="ml-2 text-sm text-gray-500 capitalize">({comment.user?.role})</span>
                           </div>
-                          <span className="text-sm text-gray-400">{formatDate(comment.created_at || "")}</span>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm text-gray-400">{formatDate(comment.created_at || "")}</span>
+                            {/* Delete Button - Only show for comment author */}
+                            {(comment.user_id === currentUserId) && (
+                              <button
+                                onClick={() => handleDeleteComment(comment.id)}
+                                className="text-red-500 hover:text-red-700 text-sm cursor-pointer"
+                                title="Delete comment"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         <p className="text-gray-700 mb-3 whitespace-pre-wrap">{comment.content}</p>
@@ -916,9 +978,22 @@ export default function CourseDetailPage() {
                                     <span className="font-medium text-gray-900 text-sm">{reply.user?.name}</span>
                                     <span className="ml-2 text-xs text-gray-500 capitalize">({reply.user?.role})</span>
                                   </div>
-                                  <span className="text-xs text-gray-400">{formatDate(reply.created_at || "")}</span>
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-xs text-gray-400">{formatDate(reply.created_at || "")}</span>
+                                    {/* Delete Button for replies */}
+                                    {(reply.user_id === currentUserId) && (
+                                      <button
+                                        onClick={() => handleDeleteComment(reply.id)}
+                                        className="text-red-500 hover:text-red-700 text-xs cursor-pointer"
+                                        title="Delete reply"
+                                      >
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
-
                                 <p className="text-gray-600 text-sm whitespace-pre-wrap">{reply.content}</p>
 
                                 {/* Reply like button (already working) - kept consistent style */}
@@ -961,6 +1036,18 @@ export default function CourseDetailPage() {
           parentComment={selectedComment}
           courseId={courseId}
           onReplyPosted={handleReplyPosted}
+        />
+      )}
+      {/* Confirmation Modal */}
+      {confirmationModal.isOpen && confirmationModal.title && (
+        <ConfirmationModal
+          isOpen={confirmationModal.isOpen}
+          onClose={() => setConfirmationModal(prev => ({ ...prev, isOpen: false }))}
+          onConfirm={confirmationModal.onConfirm}
+          title={confirmationModal.title}
+          message={confirmationModal.message}
+          variant={confirmationModal.variant}
+          isLoading={enrolling}
         />
       )}
     </div>

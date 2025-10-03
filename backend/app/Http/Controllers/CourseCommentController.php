@@ -82,6 +82,22 @@ class CourseCommentController extends Controller
         }
     }
 
+    public function destroy($commentId)
+    {
+        $user = Auth::user();
+        $comment = CourseComment::findOrFail($commentId);
+
+        // Check if user is the comment author or admin
+        if ($comment->user_id !== $user->id && $user->role !== 'admin') {
+            return response()->json(['error' => 'Unauthorized - You can only delete your own comments'], 403);
+        }
+
+        // Delete the comment (replies will be handled by database cascade if set up)
+        $comment->delete();
+
+        return response()->json(['message' => 'Comment deleted successfully']);
+    }
+
     public function toggleLike($commentId)
     {
         $user = Auth::user();

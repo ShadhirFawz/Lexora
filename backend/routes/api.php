@@ -95,6 +95,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Course Comments  
     Route::post('/courses/{courseId}/comments', [CourseCommentController::class, 'store']);
     Route::get('/courses/{courseId}/comments', [CourseCommentController::class, 'index']);
+    Route::delete('/course-comments/{commentId}', [CourseCommentController::class, 'destroy']);
     Route::post('/course-comments/{commentId}/like', [CourseCommentController::class, 'toggleLike']);
 
     /*
