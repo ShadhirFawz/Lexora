@@ -19,6 +19,7 @@ import {
   FaPlay, 
   FaLock 
 } from "react-icons/fa";
+import { useToast } from "@/contexts/ToastContext";
 
 interface CourseDetail extends Course {
   chapters?: Chapter[];
@@ -52,6 +53,7 @@ export default function CourseDetailPage() {
   const params = useParams();
   const router = useRouter();
   const courseId = params.courseId as string;
+  const { addToast } = useToast();
 
   const [course, setCourse] = useState<CourseDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -191,10 +193,22 @@ export default function CourseDetailPage() {
       // Refresh comments
       await refreshComments();
       setNewComment('');
+
+      addToast({
+        type: 'success',
+        title: 'Successfully added',
+        message: "Comment added Successfully!",
+        duration: 5000,
+      });
       
     } catch (error: any) {
       console.error("Failed to add comment:", error);
-      alert(error.message || "Failed to add comment");
+      addToast({
+        type: 'error',
+        title: 'Comment Failed',
+        message: error.message || "Failed to add comment",
+        duration: 5000,
+      });
     } finally {
       setSubmittingComment(false);
     }
@@ -272,7 +286,12 @@ export default function CourseDetailPage() {
       // success -> we leave optimistic state as-is
     } catch (error: any) {
       console.error("Failed to toggle like:", error);
-      alert(error?.message || "Failed to update like");
+      addToast({
+        type: 'error',
+        title: 'Like Failed',
+        message: error?.message || "Failed to update like",
+        duration: 4000,
+      });
       // revert to snapshot
       setComments(snapshot);
     } finally {
@@ -299,7 +318,12 @@ export default function CourseDetailPage() {
         // Revert optimistic update on error
         const previousReaction = userReaction;
         setUserReaction(previousReaction);
-        alert(error.message || "Failed to update reaction");
+        addToast({
+          type: 'error',
+          title: 'Reaction Failed',
+          message: error.message || "Failed to update reaction",
+          duration: 4000,
+        });
       } finally {
         setReacting(false);
       }
@@ -337,10 +361,20 @@ export default function CourseDetailPage() {
           // Initialize progress for newly enrolled course
           setUserProgress(0);
           
-          alert("Successfully enrolled in the course!");
+          addToast({
+            type: 'success',
+            title: 'Enrollment Successful',
+            message: 'Successfully enrolled in the course!',
+            duration: 4000,
+          });
         } catch (error: any) {
           console.error("Enrollment error:", error);
-          alert(error.message || "Failed to enroll in the course. Please try again.");
+          addToast({
+            type: 'error',
+            title: 'Enrollment Failed',
+            message: error.message || "Failed to enroll in the course. Please try again.",
+            duration: 5000,
+          });
         } finally {
           setEnrolling(false);
         }
@@ -368,10 +402,20 @@ export default function CourseDetailPage() {
           setEnrollmentData(response.enrollment_status.enrollment_data);
           setUserProgress(0);
           
-          alert("Successfully unenrolled from the course.");
+          addToast({
+            type: 'success',
+            title: 'Unenrollment Successful',
+            message: 'Successfully unenrolled from the course.',
+            duration: 4000,
+          });
         } catch (error: any) {
           console.error("Unenrollment error:", error);
-          alert(error.message || "Failed to unenroll from the course. Please try again.");
+          addToast({
+            type: 'error',
+            title: 'Unenrollment Failed',
+            message: error.message || "Failed to unenroll from the course. Please try again.",
+            duration: 5000,
+          });
         } finally {
           setEnrolling(false);
         }
@@ -382,7 +426,12 @@ export default function CourseDetailPage() {
 
   const handleChapterClick = (chapter: Chapter) => {
     if (!isEnrolled) {
-      alert("Please enroll in the course to access chapter content.");
+      addToast({
+        type: 'warning',
+        title: 'Enrollment Required',
+        message: 'Please enroll in the course to access chapter content.',
+        duration: 4000,
+      });
       return;
     }
     // Navigate to chapter detail page
@@ -411,9 +460,21 @@ export default function CourseDetailPage() {
         try {
           await courseCommentApi.deleteComment(commentId);
           await refreshComments();
+
+          addToast({
+            type: 'success',
+            title: 'Comment Deleted',
+            message: 'Your comment has been successfully deleted.',
+            duration: 3000,
+          });
         } catch (error: any) {
           console.error("Failed to delete comment:", error);
-          alert(error.message || "Failed to delete comment");
+          addToast({
+            type: 'error',
+            title: 'Delete Failed',
+            message: error.message || "Failed to delete comment",
+            duration: 5000,
+          });
         }
       },
       "danger"
