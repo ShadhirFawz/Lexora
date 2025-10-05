@@ -250,6 +250,32 @@ export const courseApi = {
   },
 };
 
+export const instructorCourseApi = {
+  // Get instructor's courses with detailed information
+  getInstructorCourses: (params?: { per_page?: number; page?: number }, token?: string) => {
+    const queryParams = new URLSearchParams();
+    if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+    if (params?.page) queryParams.append('page', params.page.toString());
+    
+    const queryString = queryParams.toString();
+    return apiFetch(`/instructor/courses${queryString ? `?${queryString}` : ''}`, "GET", null, token);
+  },
+
+  // Get detailed course statistics
+  getCourseStatistics: (courseId: number, token?: string) =>
+    apiFetch(`/instructor/courses/${courseId}/statistics`, "GET", null, token),
+
+  // Get other courses (for inspiration)
+  getOtherCourses: (params?: { per_page?: number; page?: number }, token?: string) => {
+    const queryParams = new URLSearchParams();
+    if (params?.per_page) queryParams.append('per_page', params.per_page.toString());
+    if (params?.page) queryParams.append('page', params.page.toString());
+    
+    const queryString = queryParams.toString();
+    return apiFetch(`/instructor/other-courses${queryString ? `?${queryString}` : ''}`, "GET", null, token);
+  },
+};
+
 // Course Reactions API calls
 export const courseReactionApi = {
   // Toggle reaction on course

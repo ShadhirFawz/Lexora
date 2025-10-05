@@ -11,6 +11,7 @@ use App\Http\Controllers\StudentNoteController;
 use App\Http\Controllers\ChapterCommentController;
 use App\Http\Controllers\CommentLikeController;
 use App\Http\Controllers\EnrollmentController;
+use App\Http\Controllers\InstructorCourseController;
 use App\Http\Controllers\StudentCourseController;
 use App\Http\Controllers\AdminController;
 use Illuminate\Http\Request;
@@ -153,6 +154,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/student/courses/check-enrollment/{courseId}', [StudentCourseController::class, 'checkEnrollment']);
     Route::get('/student/courses/{courseId}', [StudentCourseController::class, 'getCourseWithEnrollmentStatus']);
     Route::get('/student/courses', [StudentCourseController::class, 'getCoursesWithEnrollmentStatus']);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Instructor Courses
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/instructor/courses', [InstructorCourseController::class, 'getInstructorCourses']);
+    Route::get('/instructor/courses/{courseId}/statistics', [InstructorCourseController::class, 'getCourseStatistics']);
+    Route::get('/instructor/other-courses', [InstructorCourseController::class, 'getOtherCourses']);
 
     /*
     |--------------------------------------------------------------------------
