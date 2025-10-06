@@ -112,6 +112,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/chapters/{id}/video',         [ChapterController::class, 'saveVideo']);
     Route::get('/chapters/{id}/video',          [ChapterController::class, 'getVideo']);
 
+
+    // Image upload routes
+    Route::post('/upload/course-image', [CourseController::class, 'uploadImage']);
+    Route::post('/upload/chapter-image', [ChapterController::class, 'uploadImage']);
+
     /*
     |--------------------------------------------------------------------------
     | Progress

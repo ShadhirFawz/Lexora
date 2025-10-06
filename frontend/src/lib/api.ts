@@ -496,6 +496,26 @@ export const adminApi = {
     apiFetch(`/admin/courses/${courseId}`, "DELETE", null, token),
 };
 
+export const uploadApi = {
+  uploadCourseImage: (image: File, token?: string) => {
+    const formData = new FormData();
+    formData.append('image', image);
+    return apiFetch('/upload/course-image', 'POST', formData, token);
+  },
+
+  uploadChapterImage: (image: File, token?: string) => {
+    const formData = new FormData();
+    formData.append('image', image);
+    return apiFetch('/upload/chapter-image', 'POST', formData, token);
+  },
+
+  uploadResource: (resource: File, token?: string) => {
+    const formData = new FormData();
+    formData.append('resource', resource);
+    return apiFetch('/upload/resource', 'POST', formData, token);
+  },
+};
+
 // Utility function for health check
 export const healthCheck = () =>
   apiFetch("/health", "GET");

@@ -5,12 +5,17 @@ namespace App\Http\Controllers;
 use App\Models\Course;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Kreait\Firebase\Factory;
-use Kreait\Firebase\Storage;
-use Illuminate\Support\Str;
+use App\Services\CloudinaryService;
 
 class CourseController extends Controller
 {
+    protected $cloudinaryService;
+
+    public function __construct(CloudinaryService $cloudinaryService)
+    {
+        $this->cloudinaryService = $cloudinaryService;
+    }
+
     public function index(Request $request)
     {
         // Get pagination parameters with defaults
@@ -89,7 +94,7 @@ class CourseController extends Controller
         $validated = $request->validate([
             'title'       => 'required|string|max:255',
             'description' => 'nullable|string',
-            'image'       => 'nullable|image|max:2048',
+            'image_url'   => 'nullable|url',
         ]);
 
         $data = [
@@ -97,6 +102,7 @@ class CourseController extends Controller
             'description'   => $validated['description'] ?? null,
             'instructor_id' => $user->id,
             'status'        => 'pending', // Set status to pending by default
+            'image_url'     => $validated['image_url'] ?? null,
         ];
 
         if ($request->hasFile('image')) {
@@ -142,29 +148,25 @@ class CourseController extends Controller
         return response()->json(['message' => 'Course deleted']);
     }
 
-    public function uploadImage(Request $request, $courseId)
+    public function uploadImage(Request $request)
     {
-        $user = Auth::user();
-        $course = Course::findOrFail($courseId);
-
-        if ($user->role !== 'instructor' || $course->instructor_id !== $user->id) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         $request->validate([
-            'image' => 'required|image|max:2048',
+            'image' => 'required|image|max:5120', // 5MB max
         ]);
 
-        $firebase = new FirebaseService();
-        $url = $firebase->uploadFile($request->file('image'));
+        try {
+            $imageUrl = $this->cloudinaryService->upload($request->file('image'), 'courses');
 
-        $course->image_url = $url;
-        $course->save();
-
-        return response()->json([
-            'message'   => 'Course image uploaded successfully',
-            'image_url' => $url,
-        ]);
+            return response()->json([
+                'success' => true,
+                'image_url' => $imageUrl,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
 
