@@ -5,17 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Course;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Services\CloudinaryService;
 
 class CourseController extends Controller
 {
-    protected $cloudinaryService;
-
-    public function __construct(CloudinaryService $cloudinaryService)
-    {
-        $this->cloudinaryService = $cloudinaryService;
-    }
-
     public function index(Request $request)
     {
         // Get pagination parameters with defaults
@@ -94,21 +86,16 @@ class CourseController extends Controller
         $validated = $request->validate([
             'title'       => 'required|string|max:255',
             'description' => 'nullable|string',
-            'image_url'   => 'nullable|url',
+            'image_url'   => 'nullable|url', // Add image_url validation
         ]);
 
         $data = [
             'title'         => $validated['title'],
             'description'   => $validated['description'] ?? null,
             'instructor_id' => $user->id,
-            'status'        => 'pending', // Set status to pending by default
-            'image_url'     => $validated['image_url'] ?? null,
+            'status'        => 'pending',
+            'image_url'     => $validated['image_url'] ?? null, // Store URL directly
         ];
-
-        if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('courses', 'public');
-            $data['image'] = $path;
-        }
 
         $course = Course::create($data);
 
@@ -147,28 +134,6 @@ class CourseController extends Controller
 
         return response()->json(['message' => 'Course deleted']);
     }
-
-    public function uploadImage(Request $request)
-    {
-        $request->validate([
-            'image' => 'required|image|max:5120', // 5MB max
-        ]);
-
-        try {
-            $imageUrl = $this->cloudinaryService->upload($request->file('image'), 'courses');
-
-            return response()->json([
-                'success' => true,
-                'image_url' => $imageUrl,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
 
     public function myCourses()
     {

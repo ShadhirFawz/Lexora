@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { courseApi, chapterApi } from "@/lib/api";
 import { useToast } from "@/contexts/ToastContext";
+import { uploadToCloudinary, uploadResourceToCloudinary } from "@/utils/cloudinary";
 import { 
   PlusIcon, 
   TrashIcon,
@@ -14,12 +15,21 @@ import {
   PhotoIcon
 } from "@heroicons/react/24/outline";
 
+interface CourseFormData {
+  title: string;
+  description: string;
+  image: File | null;
+  image_url: string; // Add this
+}
+
 interface ChapterFormData {
   title: string;
   description: string;
   video_url: string;
-  image?: File | null;
-  resource?: File | null;
+  image: File | null;
+  resource: File | null;
+  image_url: string; // Add this
+  resource_url: string; // Add this
 }
 
 export default function CreateCoursePage() {
@@ -27,12 +37,13 @@ export default function CreateCoursePage() {
   const { addToast } = useToast();
   
   const [loading, setLoading] = useState(false);
-  const [courseData, setCourseData] = useState({
+    const [courseData, setCourseData] = useState<CourseFormData>({
     title: "",
     description: "",
-    image: null as File | null,
+    image: null,
+    image_url: "", // Add this
   });
-  
+
   const [chapters, setChapters] = useState<ChapterFormData[]>([
     {
       title: "",
@@ -40,17 +51,120 @@ export default function CreateCoursePage() {
       video_url: "",
       image: null,
       resource: null,
+      image_url: "", // Add this
+      resource_url: "", // Add this
     }
   ]);
+
+  const handleCourseImageUpload = async (file: File) => {
+    try {
+      const result = await uploadToCloudinary(file, 'courses');
+      if (result.success && result.url) {
+        setCourseData(prev => ({ ...prev, image_url: result.url! }));
+        addToast({
+          type: 'success',
+          title: 'Image Uploaded',
+          message: 'Course image uploaded successfully!',
+          duration: 3000,
+        });
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error: any) {
+      console.error('Failed to upload course image:', error);
+      addToast({
+        type: 'error',
+        title: 'Upload Failed',
+        message: error.message || 'Failed to upload image',
+        duration: 5000,
+      });
+    }
+  };
+
+  const handleChapterImageUpload = async (index: number, file: File) => {
+    try {
+      const result = await uploadToCloudinary(file, 'chapters');
+      if (result.success && result.url) {
+        setChapters(prev => prev.map((chapter, i) => 
+          i === index ? { ...chapter, image_url: result.url! } : chapter
+        ));
+        addToast({
+          type: 'success',
+          title: 'Image Uploaded',
+          message: 'Chapter image uploaded successfully!',
+          duration: 3000,
+        });
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error: any) {
+      console.error('Failed to upload chapter image:', error);
+      addToast({
+        type: 'error',
+        title: 'Upload Failed',
+        message: error.message || 'Failed to upload chapter image',
+        duration: 5000,
+      });
+    }
+  };
+
+  const handleChapterResourceUpload = async (index: number, file: File) => {
+    try {
+      const result = await uploadResourceToCloudinary(file, 'resources');
+      if (result.success && result.url) {
+        setChapters(prev => prev.map((chapter, i) => 
+          i === index ? { ...chapter, resource_url: result.url! } : chapter
+        ));
+        addToast({
+          type: 'success',
+          title: 'Resource Uploaded',
+          message: 'Chapter resource uploaded successfully!',
+          duration: 3000,
+        });
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error: any) {
+      console.error('Failed to upload resource:', error);
+      addToast({
+        type: 'error',
+        title: 'Upload Failed',
+        message: error.message || 'Failed to upload resource',
+        duration: 5000,
+      });
+    }
+  };
 
   const handleCourseInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setCourseData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleCourseImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCourseImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
-    setCourseData(prev => ({ ...prev, image: file }));
+    if (file) {
+      setCourseData(prev => ({ ...prev, image: file }));
+      await handleCourseImageUpload(file);
+    }
+  };
+
+  // Update the chapter file change handlers
+  const handleChapterImageChange = async (index: number, file: File | null) => {
+    if (file) {
+      setChapters(prev => prev.map((chapter, i) => 
+        i === index ? { ...chapter, image: file } : chapter
+      ));
+      await handleChapterImageUpload(index, file);
+    }
+  };
+
+  const handleChapterResourceChange = async (index: number, file: File | null) => {
+    if (file) {
+      setChapters(prev => prev.map((chapter, i) => 
+        i === index ? { ...chapter, resource: file } : chapter
+      ));
+      await handleChapterResourceUpload(index, file);
+    }
   };
 
   const handleChapterChange = (index: number, field: keyof ChapterFormData, value: string | File | null) => {
@@ -68,6 +182,8 @@ export default function CreateCoursePage() {
         video_url: "",
         image: null,
         resource: null,
+        image_url: "", // This was missing
+        resource_url: "", // This was missing
       }
     ]);
   };
@@ -89,13 +205,46 @@ export default function CreateCoursePage() {
       return false;
     }
 
+    // Check if course image is still uploading
+    if (courseData.image && !courseData.image_url) {
+      addToast({
+        type: 'error',
+        title: 'Upload in Progress',
+        message: 'Please wait for course image to finish uploading',
+        duration: 4000,
+      });
+      return false;
+    }
+
     for (let i = 0; i < chapters.length; i++) {
       const chapter = chapters[i];
+      
       if (!chapter.title.trim()) {
         addToast({
           type: 'error',
           title: 'Validation Error',
           message: `Chapter ${i + 1} title is required`,
+          duration: 4000,
+        });
+        return false;
+      }
+
+      // Check if chapter files are still uploading
+      if (chapter.image && !chapter.image_url) {
+        addToast({
+          type: 'error',
+          title: 'Upload in Progress',
+          message: `Please wait for chapter ${i + 1} image to finish uploading`,
+          duration: 4000,
+        });
+        return false;
+      }
+
+      if (chapter.resource && !chapter.resource_url) {
+        addToast({
+          type: 'error',
+          title: 'Upload in Progress',
+          message: `Please wait for chapter ${i + 1} resource to finish uploading`,
           duration: 4000,
         });
         return false;
@@ -113,48 +262,28 @@ export default function CreateCoursePage() {
     setLoading(true);
 
     try {
-      // Step 1: Create the course
-      const formData = new FormData();
-      formData.append('title', courseData.title);
-      formData.append('description', courseData.description);
-      if (courseData.image) {
-        formData.append('image', courseData.image);
-      }
-
+      // Step 1: Create the course with image URL
       const courseResponse = await courseApi.createCourse(
         courseData.title,
         courseData.description,
-        courseData.image || undefined
+        courseData.image_url // Send Cloudinary URL
       );
 
       const courseId = courseResponse.id;
 
-      // Step 2: Create chapters
+      // Step 2: Create chapters with their URLs
       const chapterPromises = chapters.map(async (chapter, index) => {
-        const chapterFormData = new FormData();
-        chapterFormData.append('title', chapter.title);
-        chapterFormData.append('description', chapter.description);
-        chapterFormData.append('video_url', chapter.video_url);
-        chapterFormData.append('order', index.toString());
-        
-        if (chapter.image) {
-          chapterFormData.append('image', chapter.image);
-        }
-
-        // Create chapter
-        const chapterResponse = await chapterApi.createChapter(courseId, {
+        const chapterData = {
           title: chapter.title,
           description: chapter.description,
           video_url: chapter.video_url,
           order: index,
-          image: chapter.image || undefined,
-        });
+          image: chapter.image_url, // Send Cloudinary URL
+          resource_url: chapter.resource_url, // Send Cloudinary URL
+        };
 
-        // Upload resource if provided
-        if (chapter.resource) {
-          await chapterApi.uploadResource(chapterResponse.id, chapter.resource);
-        }
-
+        // Create chapter
+        const chapterResponse = await chapterApi.createChapter(courseId, chapterData);
         return chapterResponse;
       });
 
@@ -167,7 +296,6 @@ export default function CreateCoursePage() {
         duration: 5000,
       });
 
-      // Redirect to instructor courses page
       router.push('/dashboard/instructor/courses');
 
     } catch (error: any) {
@@ -224,7 +352,7 @@ export default function CreateCoursePage() {
                   value={courseData.title}
                   onChange={handleCourseInputChange}
                   placeholder="Enter course title"
-                  className="w-full px-4 py-3 border text-gray-500 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
               </div>
@@ -239,7 +367,7 @@ export default function CreateCoursePage() {
                   onChange={handleCourseInputChange}
                   placeholder="Describe what students will learn in this course"
                   rows={4}
-                  className="w-full px-4 py-3 border text-gray-500 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -255,6 +383,16 @@ export default function CreateCoursePage() {
                       onChange={handleCourseImageChange}
                       className="hidden"
                     />
+                    {courseData.image_url && (
+                      <div className="flex items-center gap-2 text-sm text-green-600">
+                        ✅ Course image uploaded successfully!
+                      </div>
+                    )}
+                    {courseData.image && !courseData.image_url && (
+                      <div className="flex items-center gap-2 text-sm text-yellow-600">
+                        ⏳ Uploading course image...
+                      </div>
+                    )}
                     <div className="flex items-center justify-center px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 transition-colors">
                       <PhotoIcon className="w-5 h-5 text-gray-400 mr-2" />
                       <span className="text-gray-600">
@@ -284,7 +422,7 @@ export default function CreateCoursePage() {
                 onClick={addChapter}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 cursor-pointer transition-colors"
+                className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors"
               >
                 <PlusIcon className="w-4 h-4" />
                 Add Chapter
@@ -328,7 +466,7 @@ export default function CreateCoursePage() {
                           value={chapter.title}
                           onChange={(e) => handleChapterChange(index, 'title', e.target.value)}
                           placeholder="Enter chapter title"
-                          className="w-full px-3 py-2 border text-gray-500 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           required
                         />
                       </div>
@@ -342,7 +480,7 @@ export default function CreateCoursePage() {
                           value={chapter.video_url}
                           onChange={(e) => handleChapterChange(index, 'video_url', e.target.value)}
                           placeholder="https://example.com/video"
-                          className="w-full px-3 py-2 border text-gray-500 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
                       </div>
                     </div>
@@ -357,7 +495,7 @@ export default function CreateCoursePage() {
                           onChange={(e) => handleChapterChange(index, 'description', e.target.value)}
                           placeholder="Describe this chapter's content"
                           rows={3}
-                          className="w-full px-3 py-2 border text-gray-500 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
                       </div>
 
@@ -370,7 +508,11 @@ export default function CreateCoursePage() {
                             <input
                               type="file"
                               accept="image/*"
-                              onChange={(e) => handleChapterChange(index, 'image', e.target.files?.[0] || null)}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0] || null;
+                                handleChapterChange(index, 'image', file);
+                                if (file) handleChapterImageChange(index, file);
+                              }}
                               className="hidden"
                             />
                             <div className="flex items-center justify-center px-3 py-2 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors">
@@ -388,7 +530,11 @@ export default function CreateCoursePage() {
                             <input
                               type="file"
                               accept=".pdf,.txt"
-                              onChange={(e) => handleChapterChange(index, 'resource', e.target.files?.[0] || null)}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0] || null;
+                                handleChapterChange(index, 'resource', file);
+                                if (file) handleChapterResourceChange(index, file);
+                              }}
                               className="hidden"
                             />
                             <div className="flex items-center justify-center px-3 py-2 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors">
@@ -403,16 +549,24 @@ export default function CreateCoursePage() {
 
                   {/* File previews */}
                   <div className="mt-4 flex flex-wrap gap-2">
-                    {chapter.image && (
-                      <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                        <PhotoIcon className="w-3 h-3 mr-1" />
-                        {chapter.image.name}
+                    {chapter.image_url && (
+                      <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                        ✅ Image Uploaded
                       </span>
                     )}
-                    {chapter.resource && (
-                      <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                        <DocumentTextIcon className="w-3 h-3 mr-1" />
-                        {chapter.resource.name}
+                    {chapter.resource_url && (
+                      <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                        ✅ Resource Uploaded
+                      </span>
+                    )}
+                    {chapter.image && !chapter.image_url && (
+                      <span className="inline-flex items-center px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
+                        ⏳ Uploading Image...
+                      </span>
+                    )}
+                    {chapter.resource && !chapter.resource_url && (
+                      <span className="inline-flex items-center px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
+                        ⏳ Uploading Resource...
                       </span>
                     )}
                   </div>
@@ -427,7 +581,7 @@ export default function CreateCoursePage() {
                 onClick={addChapter}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="flex items-center gap-2 border-2 border-blue-600 bg-white text-black px-6 py-3 rounded-lg font-medium hover:bg-gray-100 cursor-pointer transition-colors"
+                className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
               >
                 <PlusIcon className="w-4 h-4" />
                 Add Another Chapter
@@ -454,7 +608,7 @@ export default function CreateCoursePage() {
                 <button
                   type="button"
                   onClick={() => router.back()}
-                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 cursor-pointer transition-colors"
+                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
@@ -464,7 +618,7 @@ export default function CreateCoursePage() {
                   disabled={loading}
                   whileHover={{ scale: loading ? 1 : 1.05 }}
                   whileTap={{ scale: loading ? 1 : 0.95 }}
-                  className="px-8 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-8 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <div className="flex items-center gap-2">

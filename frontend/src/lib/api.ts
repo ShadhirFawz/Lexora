@@ -189,6 +189,16 @@ export const authApi = {
 
 // Course-related API calls
 export const courseApi = {
+
+  createCourse: (title: string, description?: string, image_url?: string, token?: string) => {
+    const data = {
+      title,
+      description,
+      image_url, // Send URL instead of file
+    };
+    return apiFetch("/courses", "POST", data, token);
+  },
+
   // Get all courses
   getAllCourses: (params?: { per_page?: number; page?: number }, token?: string) => {
     const queryParams = new URLSearchParams();
@@ -208,16 +218,6 @@ export const courseApi = {
     const id = Array.isArray(courseId) ? courseId[0] : courseId;
     if (!id) throw new Error("Course ID is required");
     return apiFetch(`/courses/${id}`, "GET", null, token);
-  },
-
-  // Create new course (instructor only)
-  createCourse: (title: string, description?: string, image?: File, token?: string) => {
-    const formData = new FormData();
-    formData.append('title', title);
-    if (description) formData.append('description', description);
-    if (image) formData.append('image', image);
-    
-    return apiFetch("/courses", "POST", formData, token);
   },
 
   // Update course (instructor only)
@@ -318,17 +318,11 @@ export const chapterApi = {
     title: string;
     description?: string;
     order?: number;
-    image?: File;
+    image?: string; // URL string
     video_url?: string;
+    resource_url?: string; // Add resource_url
   }, token?: string) => {
-    const formData = new FormData();
-    formData.append('title', data.title);
-    if (data.description) formData.append('description', data.description);
-    if (data.order !== undefined) formData.append('order', data.order.toString());
-    if (data.image) formData.append('image', data.image);
-    if (data.video_url) formData.append('video_url', data.video_url);
-    
-    return apiFetch(`/courses/${courseId}/chapters`, "POST", formData, token);
+    return apiFetch(`/courses/${courseId}/chapters`, "POST", data, token);
   },
 
   // Update chapter (instructor only)

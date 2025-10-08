@@ -6,17 +6,9 @@ use App\Models\Chapter;
 use App\Models\Course;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Services\CloudinaryService;
 
 class ChapterController extends Controller
 {
-    protected $cloudinaryService;
-
-    public function __construct(CloudinaryService $cloudinaryService)
-    {
-        $this->cloudinaryService = $cloudinaryService;
-    }
-
     public function store(Request $request, $courseId)
     {
         $user = Auth::user();
@@ -30,8 +22,9 @@ class ChapterController extends Controller
             'title'       => 'required|string|max:255',
             'description' => 'nullable|string',
             'order'       => 'nullable|integer|min:0',
-            'image_url'   => 'nullable|url',
+            'image'       => 'nullable|string', // Changed to string for URL
             'video_url'   => 'nullable|url',
+            'resource_url' => 'nullable|string', // Add resource_url
         ]);
 
         $nextOrder = (int) $course->chapters()->max('order');
@@ -45,13 +38,9 @@ class ChapterController extends Controller
             'description' => $validated['description'] ?? null,
             'order'       => $order,
             'video_url'   => $validated['video_url'] ?? null,
-            'image_url'   => $validated['image_url'] ?? null,
+            'image'       => $validated['image'] ?? null, // Store URL directly
+            'notes_pdf'   => $validated['resource_url'] ?? null, // Store resource URL in notes_pdf
         ];
-
-        if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('chapters/images', 'public');
-            $data['image'] = $path;
-        }
 
         $chapter = Chapter::create($data);
 
@@ -117,57 +106,6 @@ class ChapterController extends Controller
         $chapter->save();
 
         return response()->json(['message' => 'Chapter reordered', 'chapter' => $chapter]);
-    }
-
-    public function uploadImage(Request $request)
-    {
-        $request->validate([
-            'image' => 'required|image|max:5120',
-        ]);
-
-        try {
-            $imageUrl = $this->cloudinaryService->upload($request->file('image'), 'chapters');
-
-            return response()->json([
-                'success' => true,
-                'image_url' => $imageUrl,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    public function uploadResource(Request $request, $chapterId)
-    {
-        $chapter = Chapter::findOrFail($chapterId);
-        $user = Auth::user();
-
-        if ($user->role !== 'instructor' || $chapter->course->instructor_id !== $user->id) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        $request->validate([
-            'resource' => 'required|file|mimes:pdf,txt|max:5120',
-        ]);
-
-        try {
-            $resourceUrl = $this->cloudinaryService->upload($request->file('resource'), 'resources');
-
-            $chapter->notes_pdf = $resourceUrl;
-            $chapter->save();
-
-            return response()->json([
-                'message' => 'Resource uploaded successfully',
-                'resource_url' => $resourceUrl,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Upload failed: ' . $e->getMessage()
-            ], 500);
-        }
     }
 
     public function saveVideo(Request $request, $chapterId)

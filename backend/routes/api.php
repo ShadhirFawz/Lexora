@@ -87,7 +87,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/courses/{id}',     [CourseController::class, 'show']);
     Route::put('/courses/{id}',     [CourseController::class, 'update']);
     Route::delete('/courses/{id}',  [CourseController::class, 'destroy']);
-    Route::post('/courses/{id}/image', [CourseController::class, 'uploadImage']);
 
     // Course Reactions
     Route::post('/courses/{courseId}/react', [CourseReactionController::class, 'toggleReaction']);
@@ -108,14 +107,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/chapters/{id}',                [ChapterController::class, 'update']);
     Route::delete('/chapters/{id}',             [ChapterController::class, 'destroy']);
     Route::post('/chapters/{id}/reorder',       [ChapterController::class, 'reorder']);
-    Route::post('/chapters/{id}/resource',      [ChapterController::class, 'uploadResource']);
     Route::post('/chapters/{id}/video',         [ChapterController::class, 'saveVideo']);
     Route::get('/chapters/{id}/video',          [ChapterController::class, 'getVideo']);
-
-
-    // Image upload routes
-    Route::post('/upload/course-image', [CourseController::class, 'uploadImage']);
-    Route::post('/upload/chapter-image', [ChapterController::class, 'uploadImage']);
 
     /*
     |--------------------------------------------------------------------------
