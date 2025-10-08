@@ -15,6 +15,7 @@ import {
   TrashIcon,
   StarIcon
 } from "@heroicons/react/24/outline";
+import { FaBookOpen, FaUsers, FaListAlt, FaStar } from "react-icons/fa";
 
 interface InstructorCourse extends Course {
   total_students?: number;
@@ -95,7 +96,9 @@ export default function InstructorCoursesPage() {
         })
       );
       
-      setCourses(coursesWithComments);
+      const approvedCourses = coursesWithComments.filter(course => course.status === 'approved');
+
+      setCourses(approvedCourses);
     } catch (err: any) {
       console.error('Error loading courses:', err);
       setError(err.message || "Failed to load courses");
@@ -150,13 +153,19 @@ export default function InstructorCoursesPage() {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'approved': return 'bg-green-100 text-green-800 border border-green-200';
-      case 'pending': return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
-      case 'rejected': return 'bg-red-100 text-red-800 border border-red-200';
-      case 'draft': return 'bg-gray-100 text-gray-800 border border-gray-200';
-      default: return 'bg-gray-100 text-gray-800 border border-gray-200';
-    }
+    const statusConfig = {
+      approved: { color: "bg-green-100 text-green-800", text: "Approved" },
+      pending: { color: "bg-yellow-100 text-yellow-800", text: "Pending" },
+      rejected: { color: "bg-red-100 text-red-800", text: "Rejected" },
+      draft: { color: "bg-gray-100 text-gray-800", text: "Draft" },
+    };
+    
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
+        {config.text}
+      </span>
+    );
   };
 
   const getStatusIcon = (status: string) => {
@@ -279,7 +288,7 @@ export default function InstructorCoursesPage() {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => router.push('/dashboard/instructor/courses/create')}
-            className="mt-4 lg:mt-0 flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+            className="mt-4 lg:mt-0 flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-indigo-700 cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl"
           >
             <PlusIcon className="w-5 h-5" />
             Create New Course
@@ -391,7 +400,7 @@ export default function InstructorCoursesPage() {
                   className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-200"
                 >
                   {/* Course Image */}
-                  <div className="h-40 bg-gradient-to-br from-blue-500 to-purple-600 relative overflow-hidden">
+                  <div className="h-40 bg-gradient-to-br from-gray-600 via-gray-700 to-gray-800 relative overflow-hidden">
                     {course.image_url ? (
                       <img
                         src={course.image_url}
@@ -399,17 +408,12 @@ export default function InstructorCoursesPage() {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-white text-4xl">
-                        📚
+                      <div className="w-full h-full flex items-center justify-center">
+                        <FaBookOpen className="w-16 h-16 text-white opacity-80" />
                       </div>
                     )}
-                    <div className="absolute top-3 right-3 flex items-center gap-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(course.status || 'pending')}`}>
-                        {course.status || 'pending'}
-                      </span>
-                      <span className="text-white text-lg">
-                        {getStatusIcon(course.status || 'pending')}
-                      </span>
+                    <div className="absolute top-3 right-3 flex flex-col items-end space-y-1">
+                      {getStatusColor(course.status || 'pending')}
                     </div>
                   </div>
 
@@ -423,20 +427,23 @@ export default function InstructorCoursesPage() {
                     </p>
 
                     {/* Stats */}
-                    <div className="grid grid-cols-3 gap-4 text-center mb-4 p-3 bg-gray-50 rounded-xl">
-                      <div>
+                    <div className="grid grid-cols-3 gap-4 text-center mb-4 p-3 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl border border-gray-100">
+                      <div className="flex flex-col items-center">
+                        <FaUsers className="w-4 h-4 text-blue-600 mb-1" />
                         <div className="text-lg font-bold text-gray-900">
                           {getStudentCount(course)}
                         </div>
                         <div className="text-xs text-gray-500">Students</div>
                       </div>
-                      <div>
+                      <div className="flex flex-col items-center">
+                        <FaListAlt className="w-4 h-4 text-green-600 mb-1" />
                         <div className="text-lg font-bold text-gray-900">
                           {getChapterCount(course)}
                         </div>
                         <div className="text-xs text-gray-500">Chapters</div>
                       </div>
-                      <div>
+                      <div className="flex flex-col items-center">
+                        <FaStar className="w-4 h-4 text-yellow-600 mb-1" />
                         <div className="text-lg font-bold text-gray-900">
                           {getReviewCount(course)}
                         </div>

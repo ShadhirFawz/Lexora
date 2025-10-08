@@ -86,7 +86,7 @@ class CourseController extends Controller
         $validated = $request->validate([
             'title'       => 'required|string|max:255',
             'description' => 'nullable|string',
-            'image_url'   => 'nullable|url', // Add image_url validation
+            'image_url'   => 'nullable|string', // Add image_url validation
         ]);
 
         $data = [

@@ -352,7 +352,7 @@ export default function CreateCoursePage() {
                   value={courseData.title}
                   onChange={handleCourseInputChange}
                   placeholder="Enter course title"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 text-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
               </div>
@@ -367,7 +367,7 @@ export default function CreateCoursePage() {
                   onChange={handleCourseInputChange}
                   placeholder="Describe what students will learn in this course"
                   rows={4}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 text-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
@@ -448,7 +448,7 @@ export default function CreateCoursePage() {
                         onClick={() => removeChapter(index)}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
                       >
                         <TrashIcon className="w-4 h-4" />
                       </motion.button>
@@ -466,7 +466,7 @@ export default function CreateCoursePage() {
                           value={chapter.title}
                           onChange={(e) => handleChapterChange(index, 'title', e.target.value)}
                           placeholder="Enter chapter title"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full px-3 py-2 border border-gray-300 text-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           required
                         />
                       </div>
@@ -480,7 +480,7 @@ export default function CreateCoursePage() {
                           value={chapter.video_url}
                           onChange={(e) => handleChapterChange(index, 'video_url', e.target.value)}
                           placeholder="https://example.com/video"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full px-3 py-2 border border-gray-300 text-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
                       </div>
                     </div>
@@ -495,7 +495,7 @@ export default function CreateCoursePage() {
                           onChange={(e) => handleChapterChange(index, 'description', e.target.value)}
                           placeholder="Describe this chapter's content"
                           rows={3}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full px-3 py-2 border border-gray-300 text-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
                       </div>
 
@@ -581,10 +581,9 @@ export default function CreateCoursePage() {
                 onClick={addChapter}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                className="flex items-center gap-2 border-2 border-dashed hover:border-blue-600 bg-white text-black px-3 py-2 rounded-lg font-normal cursor-pointer transition-colors"
               >
-                <PlusIcon className="w-4 h-4" />
-                Add Another Chapter
+                <PlusIcon className="w-6 h-6" />
               </motion.button>
             </div>
           </motion.div>
@@ -608,7 +607,7 @@ export default function CreateCoursePage() {
                 <button
                   type="button"
                   onClick={() => router.back()}
-                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
@@ -618,7 +617,7 @@ export default function CreateCoursePage() {
                   disabled={loading}
                   whileHover={{ scale: loading ? 1 : 1.05 }}
                   whileTap={{ scale: loading ? 1 : 0.95 }}
-                  className="px-8 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-8 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <div className="flex items-center gap-2">
