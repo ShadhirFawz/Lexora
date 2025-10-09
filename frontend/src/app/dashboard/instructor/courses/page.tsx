@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { instructorCourseApi, Course, courseApi, courseReactionApi, courseCommentApi } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
+import PendingRejectedCoursesModal from "@/components/PendingRejectedCoursesModal";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   PlusIcon, 
@@ -45,6 +46,7 @@ export default function InstructorCoursesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [showPendingModal, setShowPendingModal] = useState(false);
   
   const [confirmationModal, setConfirmationModal] = useState<{
     isOpen: boolean;
@@ -284,15 +286,27 @@ export default function InstructorCoursesPage() {
             </p>
           </div>
           
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => router.push('/dashboard/instructor/courses/create')}
-            className="mt-4 lg:mt-0 flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-indigo-700 cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl"
-          >
-            <PlusIcon className="w-5 h-5" />
-            Create New Course
-          </motion.button>
+          <div className="flex flex-col sm:flex-row gap-3 mt-4 lg:mt-0">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowPendingModal(true)}
+              className="flex items-center gap-2 bg-yellow-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-yellow-700 cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl"
+            >
+              <EyeIcon className="w-5 h-5" />
+              View Pending/Rejected
+            </motion.button>
+            
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => router.push('/dashboard/instructor/courses/create')}
+              className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-indigo-700 cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl"
+            >
+              <PlusIcon className="w-5 h-5" />
+              Create New Course
+            </motion.button>
+          </div>
         </motion.div>
 
         {/* Stats Overview */}
@@ -513,6 +527,10 @@ export default function InstructorCoursesPage() {
             isLoading={deletingId !== null}
           />
         )}
+        <PendingRejectedCoursesModal
+          isOpen={showPendingModal}
+          onClose={() => setShowPendingModal(false)}
+        />
       </div>
     </div>
   );

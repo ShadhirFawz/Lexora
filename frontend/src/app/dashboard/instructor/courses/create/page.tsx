@@ -20,6 +20,7 @@ interface CourseFormData {
   description: string;
   image: File | null;
   image_url: string; // Add this
+  uploadingImage: boolean;
 }
 
 interface ChapterFormData {
@@ -30,6 +31,8 @@ interface ChapterFormData {
   resource: File | null;
   image_url: string; // Add this
   resource_url: string; // Add this
+  uploadingImage: boolean; // Add this
+  uploadingResource: boolean; // Add this
 }
 
 export default function CreateCoursePage() {
@@ -42,6 +45,7 @@ export default function CreateCoursePage() {
     description: "",
     image: null,
     image_url: "", // Add this
+    uploadingImage: false,
   });
 
   const [chapters, setChapters] = useState<ChapterFormData[]>([
@@ -53,14 +57,22 @@ export default function CreateCoursePage() {
       resource: null,
       image_url: "", // Add this
       resource_url: "", // Add this
+      uploadingImage: false, // Add this
+      uploadingResource: false, // Add this
     }
   ]);
 
   const handleCourseImageUpload = async (file: File) => {
+    setCourseData(prev => ({ ...prev, uploadingImage: true })); // Add this
+    
     try {
       const result = await uploadToCloudinary(file, 'courses');
       if (result.success && result.url) {
-        setCourseData(prev => ({ ...prev, image_url: result.url! }));
+        setCourseData(prev => ({ 
+          ...prev, 
+          image_url: result.url!,
+          uploadingImage: false // Add this
+        }));
         addToast({
           type: 'success',
           title: 'Image Uploaded',
@@ -72,6 +84,7 @@ export default function CreateCoursePage() {
       }
     } catch (error: any) {
       console.error('Failed to upload course image:', error);
+      setCourseData(prev => ({ ...prev, uploadingImage: false })); // Add this
       addToast({
         type: 'error',
         title: 'Upload Failed',
@@ -82,11 +95,19 @@ export default function CreateCoursePage() {
   };
 
   const handleChapterImageUpload = async (index: number, file: File) => {
+    setChapters(prev => prev.map((chapter, i) => 
+      i === index ? { ...chapter, uploadingImage: true } : chapter
+    )); // Add this
+
     try {
       const result = await uploadToCloudinary(file, 'chapters');
       if (result.success && result.url) {
         setChapters(prev => prev.map((chapter, i) => 
-          i === index ? { ...chapter, image_url: result.url! } : chapter
+          i === index ? { 
+            ...chapter, 
+            image_url: result.url!,
+            uploadingImage: false // Add this
+          } : chapter
         ));
         addToast({
           type: 'success',
@@ -99,6 +120,9 @@ export default function CreateCoursePage() {
       }
     } catch (error: any) {
       console.error('Failed to upload chapter image:', error);
+      setChapters(prev => prev.map((chapter, i) => 
+        i === index ? { ...chapter, uploadingImage: false } : chapter
+      )); // Add this
       addToast({
         type: 'error',
         title: 'Upload Failed',
@@ -109,11 +133,19 @@ export default function CreateCoursePage() {
   };
 
   const handleChapterResourceUpload = async (index: number, file: File) => {
+    setChapters(prev => prev.map((chapter, i) => 
+      i === index ? { ...chapter, uploadingResource: true } : chapter
+    )); // Add this
+
     try {
       const result = await uploadResourceToCloudinary(file, 'resources');
       if (result.success && result.url) {
         setChapters(prev => prev.map((chapter, i) => 
-          i === index ? { ...chapter, resource_url: result.url! } : chapter
+          i === index ? { 
+            ...chapter, 
+            resource_url: result.url!,
+            uploadingResource: false // Add this
+          } : chapter
         ));
         addToast({
           type: 'success',
@@ -126,6 +158,9 @@ export default function CreateCoursePage() {
       }
     } catch (error: any) {
       console.error('Failed to upload resource:', error);
+      setChapters(prev => prev.map((chapter, i) => 
+        i === index ? { ...chapter, uploadingResource: false } : chapter
+      )); // Add this
       addToast({
         type: 'error',
         title: 'Upload Failed',
@@ -184,6 +219,8 @@ export default function CreateCoursePage() {
         resource: null,
         image_url: "", // This was missing
         resource_url: "", // This was missing
+        uploadingImage: false, // Add this
+        uploadingResource: false, // Add this
       }
     ]);
   };
@@ -311,6 +348,20 @@ export default function CreateCoursePage() {
     }
   };
 
+  const getFileNameFromUrl = (url: string): string => {
+    try {
+      const urlObj = new URL(url);
+      const pathname = urlObj.pathname;
+      const fileName = pathname.split('/').pop() || 'resource';
+      return decodeURIComponent(fileName);
+    } catch {
+      // If URL parsing fails, try to extract from the string
+      const parts = url.split('/');
+      const lastPart = parts.pop() || 'resource';
+      return decodeURIComponent(lastPart.split('?')[0]); // Remove query parameters
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
       <div className="max-w-4xl mx-auto">
@@ -375,29 +426,44 @@ export default function CreateCoursePage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Course Image
                 </label>
-                <div className="flex items-center space-x-4">
-                  <label className="flex-1 cursor-pointer">
+                <div className="space-y-3">
+                  {/* Image Preview */}
+                  {courseData.image_url && !courseData.uploadingImage && (
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <img 
+                        src={courseData.image_url} 
+                        alt="Course preview" 
+                        className="w-full h-32 object-cover"
+                      />
+                    </div>
+                  )}
+                  
+                  <label className="cursor-pointer">
                     <input
                       type="file"
                       accept="image/*"
                       onChange={handleCourseImageChange}
                       className="hidden"
+                      disabled={courseData.uploadingImage}
                     />
-                    {courseData.image_url && (
-                      <div className="flex items-center gap-2 text-sm text-green-600">
-                        ✅ Course image uploaded successfully!
-                      </div>
-                    )}
-                    {courseData.image && !courseData.image_url && (
-                      <div className="flex items-center gap-2 text-sm text-yellow-600">
-                        ⏳ Uploading course image...
-                      </div>
-                    )}
-                    <div className="flex items-center justify-center px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 transition-colors">
-                      <PhotoIcon className="w-5 h-5 text-gray-400 mr-2" />
-                      <span className="text-gray-600">
-                        {courseData.image ? courseData.image.name : 'Choose course image'}
-                      </span>
+                    <div className={`flex items-center justify-center px-4 py-3 border-2 border-dashed rounded-lg transition-colors ${
+                      courseData.uploadingImage 
+                        ? 'border-yellow-400 bg-yellow-50' 
+                        : 'border-gray-300 hover:border-blue-500'
+                    }`}>
+                      {courseData.uploadingImage ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-yellow-600 border-t-transparent rounded-full animate-spin" />
+                          <span className="text-yellow-700">Uploading...</span>
+                        </div>
+                      ) : (
+                        <>
+                          <PhotoIcon className="w-5 h-5 text-gray-400 mr-2" />
+                          <span className="text-gray-600">
+                            {courseData.image_url ? 'Change course image' : 'Choose course image'}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </label>
                 </div>
@@ -499,11 +565,24 @@ export default function CreateCoursePage() {
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-3 mt-20">
+                        {/* Chapter Image Button */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             Chapter Image
                           </label>
+                          
+                          {/* Image Preview */}
+                          {chapter.image_url && !chapter.uploadingImage && (
+                            <div className="mb-2 border border-gray-200 rounded-lg overflow-hidden">
+                              <img 
+                                src={chapter.image_url} 
+                                alt="Chapter preview" 
+                                className="w-full h-24 object-cover"
+                              />
+                            </div>
+                          )}
+                          
                           <label className="cursor-pointer">
                             <input
                               type="file"
@@ -514,18 +593,58 @@ export default function CreateCoursePage() {
                                 if (file) handleChapterImageChange(index, file);
                               }}
                               className="hidden"
+                              disabled={chapter.uploadingImage}
                             />
-                            <div className="flex items-center justify-center px-3 py-2 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors">
-                              <PhotoIcon className="w-4 h-4 text-gray-400 mr-1" />
-                              <span className="text-xs text-gray-600">Image</span>
+                            <div className={`flex items-center justify-center px-3 py-2 border rounded-lg transition-colors ${
+                              chapter.uploadingImage
+                                ? 'border-yellow-400 bg-yellow-50'
+                                : 'border-gray-300 hover:border-blue-500'
+                            }`}>
+                              {chapter.uploadingImage ? (
+                                <div className="flex items-center gap-1">
+                                  <div className="w-3 h-3 border-2 border-yellow-600 border-t-transparent rounded-full animate-spin" />
+                                  <span className="text-xs text-yellow-700">Uploading</span>
+                                </div>
+                              ) : (
+                                <>
+                                  <PhotoIcon className="w-4 h-4 text-gray-400 mr-1" />
+                                  <span className="text-xs text-gray-600">
+                                    {chapter.image_url ? 'Change Image' : 'Image'}
+                                  </span>
+                                </>
+                              )}
                             </div>
                           </label>
                         </div>
 
+                        {/* Chapter Resource Button */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             Resource (PDF/TXT)
                           </label>
+                          
+                          {/* Resource Preview */}
+                          {chapter.resource_url && !chapter.uploadingResource && (
+                            <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                              <div className="flex items-center gap-2">
+                                <DocumentTextIcon className="w-4 h-4 text-blue-600" />
+                                <span className="text-xs text-blue-800 font-medium truncate">
+                                  {getFileNameFromUrl(chapter.resource_url)}
+                                </span>
+                                <a 
+                                  href={chapter.resource_url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="ml-auto text-blue-600 hover:text-blue-800"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                  </svg>
+                                </a>
+                              </div>
+                            </div>
+                          )}
+                          
                           <label className="cursor-pointer">
                             <input
                               type="file"
@@ -536,39 +655,31 @@ export default function CreateCoursePage() {
                                 if (file) handleChapterResourceChange(index, file);
                               }}
                               className="hidden"
+                              disabled={chapter.uploadingResource}
                             />
-                            <div className="flex items-center justify-center px-3 py-2 border border-gray-300 rounded-lg hover:border-blue-500 transition-colors">
-                              <DocumentTextIcon className="w-4 h-4 text-gray-400 mr-1" />
-                              <span className="text-xs text-gray-600">Resource</span>
+                            <div className={`flex items-center justify-center px-3 py-2 border rounded-lg transition-colors ${
+                              chapter.uploadingResource
+                                ? 'border-yellow-400 bg-yellow-50'
+                                : 'border-gray-300 hover:border-blue-500'
+                            }`}>
+                              {chapter.uploadingResource ? (
+                                <div className="flex items-center gap-1">
+                                  <div className="w-3 h-3 border-2 border-yellow-600 border-t-transparent rounded-full animate-spin" />
+                                  <span className="text-xs text-yellow-700">Uploading</span>
+                                </div>
+                              ) : (
+                                <>
+                                  <DocumentTextIcon className="w-4 h-4 text-gray-400 mr-1" />
+                                  <span className="text-xs text-gray-600">
+                                    {chapter.resource_url ? 'Change Resource' : 'Resource'}
+                                  </span>
+                                </>
+                              )}
                             </div>
                           </label>
                         </div>
                       </div>
                     </div>
-                  </div>
-
-                  {/* File previews */}
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {chapter.image_url && (
-                      <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                        ✅ Image Uploaded
-                      </span>
-                    )}
-                    {chapter.resource_url && (
-                      <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                        ✅ Resource Uploaded
-                      </span>
-                    )}
-                    {chapter.image && !chapter.image_url && (
-                      <span className="inline-flex items-center px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
-                        ⏳ Uploading Image...
-                      </span>
-                    )}
-                    {chapter.resource && !chapter.resource_url && (
-                      <span className="inline-flex items-center px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">
-                        ⏳ Uploading Resource...
-                      </span>
-                    )}
                   </div>
                 </motion.div>
               ))}
