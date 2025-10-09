@@ -14,8 +14,8 @@ class CourseCommentController extends Controller
     public function store(Request $request, $courseId)
     {
         $user = Auth::user();
-        if ($user->role !== 'student') {
-            return response()->json(['error' => 'Only students can comment on courses'], 403);
+        if ($user->role !== 'student' && $user->role !== 'instructor') {
+            return response()->json(['error' => 'Only students and instructors can comment on courses'], 403);
         }
 
         $validated = $request->validate([
