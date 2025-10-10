@@ -252,7 +252,7 @@ useEffect(() => {
         {/* Course Content */}
         <div className="p-4 flex flex-col flex-1 min-h-0">
           {/* Title */}
-          <h3 className="font-semibold text-gray-900 text-lg mb-2 line-clamp-2 leading-tight h-14 overflow-hidden">
+          <h3 className="font-semibold text-gray-900 text-lg mb-2 line-clamp-2 leading-7 h-14 overflow-hidden">
             {course.title}
           </h3>
 
