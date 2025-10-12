@@ -61,16 +61,11 @@ class ChapterController extends Controller
             'description' => 'nullable|string',
             'order'       => 'nullable|integer|min:0',
             'video_url'   => 'nullable|url',
-            'image'       => 'nullable|image|max:2048',
+            'image'       => 'nullable|string', // Changed to accept URL string
         ]);
 
-        $chapter->update(collect($validated)->except('image')->toArray());
-
-        if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('chapters/images', 'public');
-            $chapter->image = $path;
-            $chapter->save();
-        }
+        // Update the chapter with all validated data
+        $chapter->update($validated);
 
         return response()->json($chapter);
     }

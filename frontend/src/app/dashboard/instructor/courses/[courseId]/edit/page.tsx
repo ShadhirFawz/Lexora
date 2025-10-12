@@ -313,6 +313,61 @@ function SortableChapter({
                     <p className="text-sm text-gray-600 mt-1">{chapter.description}</p>
                   )}
                 </div>
+                
+                {/* Image and Resource Previews */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Image Preview */}
+                  {chapter.image_url && (
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <div className="bg-gray-100 p-2 border-b border-gray-200">
+                        <span className="text-xs font-medium text-gray-700 flex items-center">
+                          <PhotoIcon className="w-3 h-3 mr-1" />
+                          Chapter Image
+                        </span>
+                      </div>
+                      <img 
+                        src={chapter.image_url} 
+                        alt="Chapter preview" 
+                        className="w-full h-32 object-cover"
+                      />
+                    </div>
+                  )}
+
+                  {/* Resource Preview */}
+                  {chapter.resource_url && (
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <div className="bg-blue-50 p-2 border-b border-blue-200">
+                        <span className="text-xs font-medium text-blue-700 flex items-center">
+                          <DocumentTextIcon className="w-3 h-3 mr-1" />
+                          Chapter Resource
+                        </span>
+                      </div>
+                      <div className="p-3">
+                        <div className="flex items-center gap-2">
+                          <DocumentTextIcon className="w-8 h-8 text-blue-600" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {getFileNameFromUrl(chapter.resource_url)}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Click to download
+                            </p>
+                          </div>
+                        </div>
+                        <a 
+                          href={chapter.resource_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="mt-2 w-full bg-blue-600 hover:bg-blue-700 text-white text-xs py-2 px-3 rounded text-center block transition-colors"
+                        >
+                          Download Resource
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Status Indicators */}
                 <div className="flex flex-wrap gap-4 text-xs text-gray-500">
                   {chapter.video_url && (
                     <span className="flex items-center">
@@ -699,23 +754,16 @@ export default function EditCoursePage() {
 
     try {
         if (chapter.id) {
-        // Update existing chapter - only send text fields, not files
+        // Update existing chapter - send all fields including image URL
         const updateData = {
             title: chapter.title,
             description: chapter.description,
             video_url: chapter.video_url,
             order: index,
+            image: chapter.image_url, // Send the Cloudinary URL, not the File
         };
         
         await chapterApi.updateChapter(chapter.id, updateData);
-        
-        // If there's a new image file selected, upload it separately
-        if (chapter.image && chapter.image instanceof File) {
-            await chapterApi.updateChapter(chapter.id, {
-            ...updateData,
-            image: chapter.image,
-            });
-        }
         
         addToast({
             type: 'success',
@@ -755,7 +803,7 @@ export default function EditCoursePage() {
         duration: 5000,
         });
     }
-    };
+  };
 
   const handleSaveCourse = async () => {
     try {
@@ -871,7 +919,7 @@ export default function EditCoursePage() {
             </div>
             <button
               onClick={() => router.push(`/dashboard/instructor/courses/${courseId}`)}
-              className="flex items-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-700 transition-colors"
+              className="flex items-center gap-2 bg-gray-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-700 cursor-pointer transition-colors"
             >
               <XMarkIcon className="w-4 h-4" />
               Cancel
@@ -991,7 +1039,7 @@ export default function EditCoursePage() {
                 onClick={addChapter}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors"
+                className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 cursor-pointer transition-colors"
               >
                 <PlusIcon className="w-4 h-4" />
                 Add Chapter
@@ -1056,7 +1104,7 @@ export default function EditCoursePage() {
                 <button
                   type="button"
                   onClick={() => router.push(`/dashboard/instructor/courses/${courseId}`)}
-                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 cursor-pointer transition-colors"
                 >
                   Discard
                 </button>
@@ -1066,7 +1114,7 @@ export default function EditCoursePage() {
                   disabled={saving}
                   whileHover={{ scale: saving ? 1 : 1.05 }}
                   whileTap={{ scale: saving ? 1 : 0.95 }}
-                  className="px-8 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-8 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {saving ? (
                     <div className="flex items-center gap-2">

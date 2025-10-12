@@ -331,16 +331,9 @@ export const chapterApi = {
     description?: string;
     order?: number;
     video_url?: string;
-    image?: File;
+    image?: string; // Changed from File to string
   }, token?: string) => {
-    const formData = new FormData();
-    if (data.title) formData.append('title', data.title);
-    if (data.description) formData.append('description', data.description);
-    if (data.order !== undefined) formData.append('order', data.order.toString());
-    if (data.video_url) formData.append('video_url', data.video_url);
-    if (data.image) formData.append('image', data.image);
-    
-    return apiFetch(`/chapters/${chapterId}`, "PUT", formData, token);
+    return apiFetch(`/chapters/${chapterId}`, "PUT", data, token);
   },
 
   // Delete chapter (instructor only)
