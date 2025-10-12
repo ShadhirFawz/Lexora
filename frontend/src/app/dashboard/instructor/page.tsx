@@ -209,13 +209,7 @@ useEffect(() => {
     const instructorCourse = course as InstructorCourse;
 
     const handleCourseClick = () => {
-      if (isMyCourse) {
-        // Navigate to instructor's course management page
-        router.push(`/dashboard/instructor/courses/${course.id}`);
-      } else {
-        // Navigate to course view page (read-only for other courses)
-        router.push(`/dashboard/student/courses/${course.id}`);
-      }
+      router.push(`/dashboard/instructor/courses/${course.id}`);
     };
 
     const handleEditCourse = (e: React.MouseEvent) => {

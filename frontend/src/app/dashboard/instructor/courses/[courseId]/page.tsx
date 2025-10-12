@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ReplyModal from "@/components/courses/ReplyModal";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
-import { instructorCourseApi, courseApi, Course, Chapter, CourseComment, courseCommentApi, courseReactionApi, chapterApi } from "@/lib/api";
+import { instructorCourseApi, courseApi, Course, Chapter, CourseComment, courseCommentApi, courseReactionApi, chapterApi, authApi } from "@/lib/api";
 import { 
   FaBookOpen, 
   FaUser, 
@@ -63,6 +63,7 @@ export default function InstructorCourseDetailPage() {
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [showAddChapter, setShowAddChapter] = useState(false);
   const [addingChapter, setAddingChapter] = useState(false);
+  const [isCourseOwner, setIsCourseOwner] = useState(false);
   const [confirmationModal, setConfirmationModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -95,6 +96,16 @@ export default function InstructorCourseDetailPage() {
     return new Date(dateString);
   };
 
+  const getCurrentInstructorId = async (): Promise<number> => {
+    try {
+      const userData = await authApi.getMe();
+      return userData.id;
+    } catch (error) {
+      console.error("Failed to get current user:", error);
+      throw new Error("Unable to verify user identity");
+    }
+  };
+
   useEffect(() => {
     if (!courseId) {
       router.push("/dashboard/instructor/courses");
@@ -108,16 +119,50 @@ export default function InstructorCourseDetailPage() {
     try {
       setLoading(true);
       
-      // Fetch instructor course details
-      const response = await instructorCourseApi.getInstructorCourses();
-      const courses = response.data || response || [];
-      const currentCourse = courses.find((c: CourseDetail) => c.id.toString() === courseId);
-      
+      // Get current user first
+      const currentInstructorId = await getCurrentInstructorId();
+      setCurrentUserId(currentInstructorId);
+
+      // Try multiple approaches to get the course data
+      let currentCourse: CourseDetail | null = null;
+
+      // Approach 1: Try to get from instructor's courses first
+      try {
+        const instructorResponse = await instructorCourseApi.getInstructorCourses();
+        const instructorCourses = instructorResponse.data || instructorResponse || [];
+        currentCourse = instructorCourses.find((c: CourseDetail) => c.id.toString() === courseId) || null;
+      } catch (error) {
+        console.log("Could not fetch instructor courses, trying general courses...");
+      }
+
+      // Approach 2: If not found in instructor courses, try general courses API
+      if (!currentCourse) {
+        try {
+          const generalResponse = await courseApi.getAllCourses();
+          const allCourses = generalResponse.data || generalResponse || [];
+          currentCourse = allCourses.find((c: CourseDetail) => c.id.toString() === courseId) || null;
+        } catch (error) {
+          console.log("Could not fetch general courses, trying direct course API...");
+        }
+      }
+
+      // Approach 3: If still not found, try direct course API
+      if (!currentCourse) {
+        try {
+          currentCourse = await courseApi.getCourse(courseId);
+        } catch (error) {
+          console.log("Could not fetch course directly");
+        }
+      }
+
       if (!currentCourse) {
         throw new Error("Course not found");
       }
 
       setCourse(currentCourse);
+
+      // Check if current user is the course owner
+      setIsCourseOwner(currentCourse.instructor_id === currentInstructorId);
 
       // Fetch comments
       const commentsData = await courseCommentApi.getComments(courseId);
@@ -127,15 +172,12 @@ export default function InstructorCourseDetailPage() {
       const reactionsData = await courseReactionApi.getReactions(parseInt(courseId));
       setReactions(reactionsData);
 
-      // Set current user ID (instructor's ID)
-      setCurrentUserId(currentCourse.instructor_id);
-
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to load course data:", error);
       addToast({
         type: 'error',
         title: 'Error',
-        message: 'Failed to load course data',
+        message: error.message || 'Failed to load course data',
         duration: 5000,
       });
     } finally {
@@ -554,15 +596,18 @@ export default function InstructorCourseDetailPage() {
                 <h1 className="text-3xl font-bold text-gray-900">
                   {course.title}
                 </h1>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleEditCourse}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium cursor-pointer transition-colors"
-                  >
-                    <FaEdit className="w-4 h-4" />
-                    Edit Course
-                  </button>
-                </div>
+                {/* Only show edit button if user is course owner */}
+                {isCourseOwner && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleEditCourse}
+                      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium cursor-pointer transition-colors"
+                    >
+                      <FaEdit className="w-4 h-4" />
+                      Edit Course
+                    </button>
+                  </div>
+                )}
               </div>
               
               <p className="text-gray-600 text-lg mb-6">{course.description}</p>
@@ -632,205 +677,211 @@ export default function InstructorCourseDetailPage() {
         <div className="bg-white rounded-2xl shadow-xl p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold text-gray-900">Course Chapters ({course.chapters?.length || 0})</h2>
-            <button
-              onClick={() => setShowAddChapter(!showAddChapter)}
-              className="flex items-center gap-2 border-2 border-dashed hover:border-blue-600 hover:text-blue-600 bg-white text-black px-4 py-2 rounded-lg font-normal cursor-pointer transition-colors"
-            >
-              <FaPlus className="w-4 h-4" />
-              Add Chapter
-            </button>
+            {isCourseOwner && (
+              <button
+                onClick={() => setShowAddChapter(!showAddChapter)}
+                className="flex items-center gap-2 border-2 border-dashed hover:border-blue-600 hover:text-blue-600 bg-white text-black px-4 py-2 rounded-lg font-normal cursor-pointer transition-colors"
+              >
+                <FaPlus className="w-4 h-4" />
+                Add Chapter
+              </button>
+            )}
+            
           </div>
 
           {/* Add Chapter Form */}
-          <AnimatePresence>
-            {showAddChapter && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="border border-gray-200 rounded-xl p-6 bg-gray-50 mb-6 overflow-hidden"
-              >
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Add New Chapter</h3>
-                
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Chapter Title *
-                      </label>
-                      <input
-                        type="text"
-                        value={newChapter.title}
-                        onChange={(e) => handleChapterInputChange('title', e.target.value)}
-                        placeholder="Enter chapter title"
-                        className="w-full px-3 py-2 border border-gray-300 text-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Video URL
-                      </label>
-                      <input
-                        type="url"
-                        value={newChapter.video_url}
-                        onChange={(e) => handleChapterInputChange('video_url', e.target.value)}
-                        placeholder="https://example.com/video"
-                        className="w-full px-3 py-2 border border-gray-300 text-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Chapter Description
-                      </label>
-                      <textarea
-                        value={newChapter.description}
-                        onChange={(e) => handleChapterInputChange('description', e.target.value)}
-                        placeholder="Describe this chapter's content"
-                        rows={3}
-                        className="w-full px-3 py-2 border border-gray-300 text-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      {/* Chapter Image */}
+          {isCourseOwner && (
+            <AnimatePresence>
+              {showAddChapter && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="border border-gray-200 rounded-xl p-6 bg-gray-50 mb-6 overflow-hidden"
+                >
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Add New Chapter</h3>
+                  
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Chapter Image
+                          Chapter Title *
                         </label>
-                        
-                        {/* Image Preview */}
-                        {newChapter.image_url && !newChapter.uploadingImage && (
-                          <div className="mb-2 border border-gray-200 rounded-lg overflow-hidden">
-                            <img 
-                              src={newChapter.image_url} 
-                              alt="Chapter preview" 
-                              className="w-full h-20 object-cover"
-                            />
-                          </div>
-                        )}
-                        
-                        <label className="cursor-pointer">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0] || null;
-                              handleChapterInputChange('image', file);
-                              if (file) handleChapterImageChange(file);
-                            }}
-                            className="hidden"
-                            disabled={newChapter.uploadingImage}
-                          />
-                          <div className={`flex items-center justify-center px-3 py-2 border rounded-lg transition-colors ${
-                            newChapter.uploadingImage
-                              ? 'border-yellow-400 bg-yellow-50'
-                              : 'border-gray-300 hover:border-blue-500'
-                          }`}>
-                            {newChapter.uploadingImage ? (
-                              <div className="flex items-center gap-1">
-                                <div className="w-3 h-3 border-2 border-yellow-600 border-t-transparent rounded-full animate-spin" />
-                                <span className="text-xs text-yellow-700">Uploading</span>
-                              </div>
-                            ) : (
-                              <>
-                                <PhotoIcon className="w-4 h-4 text-gray-400 mr-1" />
-                                <span className="text-xs text-gray-600">
-                                  {newChapter.image_url ? 'Change Image' : 'Image'}
-                                </span>
-                              </>
-                            )}
-                          </div>
-                        </label>
+                        <input
+                          type="text"
+                          value={newChapter.title}
+                          onChange={(e) => handleChapterInputChange('title', e.target.value)}
+                          placeholder="Enter chapter title"
+                          className="w-full px-3 py-2 border border-gray-300 text-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          required
+                        />
                       </div>
 
-                      {/* Chapter Resource */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Resource (PDF/TXT)
+                          Video URL
                         </label>
-                        
-                        {/* Resource Preview */}
-                        {newChapter.resource_url && !newChapter.uploadingResource && (
-                          <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
-                            <div className="flex items-center gap-2">
-                              <DocumentTextIcon className="w-4 h-4 text-blue-600" />
-                              <span className="text-xs text-blue-800 font-medium truncate">
-                                {getFileNameFromUrl(newChapter.resource_url)}
-                              </span>
+                        <input
+                          type="url"
+                          value={newChapter.video_url}
+                          onChange={(e) => handleChapterInputChange('video_url', e.target.value)}
+                          placeholder="https://example.com/video"
+                          className="w-full px-3 py-2 border border-gray-300 text-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Chapter Description
+                        </label>
+                        <textarea
+                          value={newChapter.description}
+                          onChange={(e) => handleChapterInputChange('description', e.target.value)}
+                          placeholder="Describe this chapter's content"
+                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-300 text-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        {/* Chapter Image */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Chapter Image
+                          </label>
+                          
+                          {/* Image Preview */}
+                          {newChapter.image_url && !newChapter.uploadingImage && (
+                            <div className="mb-2 border border-gray-200 rounded-lg overflow-hidden">
+                              <img 
+                                src={newChapter.image_url} 
+                                alt="Chapter preview" 
+                                className="w-full h-20 object-cover"
+                              />
                             </div>
-                          </div>
-                        )}
-                        
-                        <label className="cursor-pointer">
-                          <input
-                            type="file"
-                            accept=".pdf,.txt"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0] || null;
-                              handleChapterInputChange('resource', file);
-                              if (file) handleChapterResourceChange(file);
-                            }}
-                            className="hidden"
-                            disabled={newChapter.uploadingResource}
-                          />
-                          <div className={`flex items-center justify-center px-3 py-2 border rounded-lg transition-colors ${
-                            newChapter.uploadingResource
-                              ? 'border-yellow-400 bg-yellow-50'
-                              : 'border-gray-300 hover:border-blue-500'
-                          }`}>
-                            {newChapter.uploadingResource ? (
-                              <div className="flex items-center gap-1">
-                                <div className="w-3 h-3 border-2 border-yellow-600 border-t-transparent rounded-full animate-spin" />
-                                <span className="text-xs text-yellow-700">Uploading</span>
-                              </div>
-                            ) : (
-                              <>
-                                <DocumentTextIcon className="w-4 h-4 text-gray-400 mr-1" />
-                                <span className="text-xs text-gray-600">
-                                  {newChapter.resource_url ? 'Change Resource' : 'Resource'}
+                          )}
+                          
+                          <label className="cursor-pointer">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0] || null;
+                                handleChapterInputChange('image', file);
+                                if (file) handleChapterImageChange(file);
+                              }}
+                              className="hidden"
+                              disabled={newChapter.uploadingImage}
+                            />
+                            <div className={`flex items-center justify-center px-3 py-2 border rounded-lg transition-colors ${
+                              newChapter.uploadingImage
+                                ? 'border-yellow-400 bg-yellow-50'
+                                : 'border-gray-300 hover:border-blue-500'
+                            }`}>
+                              {newChapter.uploadingImage ? (
+                                <div className="flex items-center gap-1">
+                                  <div className="w-3 h-3 border-2 border-yellow-600 border-t-transparent rounded-full animate-spin" />
+                                  <span className="text-xs text-yellow-700">Uploading</span>
+                                </div>
+                              ) : (
+                                <>
+                                  <PhotoIcon className="w-4 h-4 text-gray-400 mr-1" />
+                                  <span className="text-xs text-gray-600">
+                                    {newChapter.image_url ? 'Change Image' : 'Image'}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </label>
+                        </div>
+
+                        {/* Chapter Resource */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Resource (PDF/TXT)
+                          </label>
+                          
+                          {/* Resource Preview */}
+                          {newChapter.resource_url && !newChapter.uploadingResource && (
+                            <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                              <div className="flex items-center gap-2">
+                                <DocumentTextIcon className="w-4 h-4 text-blue-600" />
+                                <span className="text-xs text-blue-800 font-medium truncate">
+                                  {getFileNameFromUrl(newChapter.resource_url)}
                                 </span>
-                              </>
-                            )}
-                          </div>
-                        </label>
+                              </div>
+                            </div>
+                          )}
+                          
+                          <label className="cursor-pointer">
+                            <input
+                              type="file"
+                              accept=".pdf,.txt"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0] || null;
+                                handleChapterInputChange('resource', file);
+                                if (file) handleChapterResourceChange(file);
+                              }}
+                              className="hidden"
+                              disabled={newChapter.uploadingResource}
+                            />
+                            <div className={`flex items-center justify-center px-3 py-2 border rounded-lg transition-colors ${
+                              newChapter.uploadingResource
+                                ? 'border-yellow-400 bg-yellow-50'
+                                : 'border-gray-300 hover:border-blue-500'
+                            }`}>
+                              {newChapter.uploadingResource ? (
+                                <div className="flex items-center gap-1">
+                                  <div className="w-3 h-3 border-2 border-yellow-600 border-t-transparent rounded-full animate-spin" />
+                                  <span className="text-xs text-yellow-700">Uploading</span>
+                                </div>
+                              ) : (
+                                <>
+                                  <DocumentTextIcon className="w-4 h-4 text-gray-400 mr-1" />
+                                  <span className="text-xs text-gray-600">
+                                    {newChapter.resource_url ? 'Change Resource' : 'Resource'}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </label>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex justify-end gap-3 mt-6">
-                  <button
-                    onClick={() => {
-                      setShowAddChapter(false);
-                      resetChapterForm();
-                    }}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 cursor-pointer transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleAddChapter}
-                    disabled={addingChapter || !newChapter.title.trim()}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 cursor-pointer transition-colors disabled:opacity-50"
-                  >
-                    {addingChapter ? (
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Adding...
-                      </div>
-                    ) : (
-                      'Add Chapter'
-                    )}
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button
+                      onClick={() => {
+                        setShowAddChapter(false);
+                        resetChapterForm();
+                      }}
+                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 cursor-pointer transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleAddChapter}
+                      disabled={addingChapter || !newChapter.title.trim()}
+                      className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 cursor-pointer transition-colors disabled:opacity-50"
+                    >
+                      {addingChapter ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Adding...
+                        </div>
+                      ) : (
+                        'Add Chapter'
+                      )}
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          )}
+          
 
           {/* Chapters List */}
           <div className="space-y-3">
@@ -987,7 +1038,7 @@ export default function InstructorCourseDetailPage() {
                           </div>
                           <div className="flex items-center space-x-2">
                             <span className="text-sm text-gray-400">{formatDate(comment.created_at || "")}</span>
-                            {(comment.user_id === currentUserId) && (
+                            {(comment.user_id === currentUserId || isCourseOwner) && (
                               <button
                                 onClick={() => handleDeleteComment(comment.id)}
                                 className="text-red-500 cursor-pointer hover:text-red-700 text-sm"
@@ -1068,7 +1119,7 @@ export default function InstructorCourseDetailPage() {
                                   </div>
                                   <div className="flex items-center space-x-2">
                                     <span className="text-xs text-gray-400">{formatDate(reply.created_at || "")}</span>
-                                    {(reply.user_id === currentUserId) && (
+                                    {(reply.user_id === currentUserId || isCourseOwner) && (
                                       <button
                                         onClick={() => handleDeleteComment(reply.id)}
                                         className="text-red-500 cursor-pointer hover:text-red-700 text-xs"

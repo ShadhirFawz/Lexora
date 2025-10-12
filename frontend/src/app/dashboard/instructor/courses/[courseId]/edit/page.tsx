@@ -13,7 +13,7 @@ import {
   VideoCameraIcon,
   DocumentTextIcon,
   PhotoIcon,
-  ArrowPathIcon,
+  ArrowDownCircleIcon,
   PencilIcon,
   XMarkIcon
 } from "@heroicons/react/24/outline";
@@ -118,16 +118,16 @@ function SortableChapter({
                   <button
                     onClick={() => onSave(index)}
                     disabled={!chapter.title.trim()}
-                    className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1 rounded text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    className="flex items-center gap-1 bg-blue-600 text-white px-5 py-1 rounded text-sm font-medium hover:bg-blue-700 cursor-pointer transition-colors disabled:opacity-50"
                   >
-                    <ArrowPathIcon className="w-3 h-3" />
+                    <ArrowDownCircleIcon className="w-4 h-4" />
                     Save
                   </button>
                   <button
                     onClick={() => onCancel(index)}
-                    className="flex items-center gap-1 bg-gray-600 text-white px-3 py-1 rounded text-sm font-medium hover:bg-gray-700 transition-colors"
+                    className="flex items-center gap-1 bg-gray-600 text-white px-3 py-1 rounded text-sm font-medium hover:bg-gray-700 cursor-pointer transition-colors"
                   >
-                    <XMarkIcon className="w-3 h-3" />
+                    <XMarkIcon className="w-4 h-4" />
                     Cancel
                   </button>
                 </>
