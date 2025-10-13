@@ -128,4 +128,53 @@ class ChapterController extends Controller
 
         return response()->json(['video_url' => $chapter->video_url]);
     }
+
+    public function getChapterForLearning($chapterId)
+    {
+        $user = Auth::user();
+
+        if ($user->role !== 'student') {
+            return response()->json(['error' => 'Only students can access learning pages'], 403);
+        }
+
+        $chapter = Chapter::with(['course', 'course.instructor'])
+            ->findOrFail($chapterId);
+
+        // Check if student is enrolled
+        if (!$user->coursesEnrolled()->where('course_id', $chapter->course_id)->exists()) {
+            return response()->json(['error' => 'You must be enrolled in this course to access chapters'], 403);
+        }
+
+        // Get previous and next chapters for navigation
+        $previousChapter = Chapter::where('course_id', $chapter->course_id)
+            ->where('order', '<', $chapter->order)
+            ->orderBy('order', 'desc')
+            ->first();
+
+        $nextChapter = Chapter::where('course_id', $chapter->course_id)
+            ->where('order', '>', $chapter->order)
+            ->orderBy('order', 'asc')
+            ->first();
+
+        return response()->json([
+            'chapter' => $chapter,
+            'navigation' => [
+                'previous' => $previousChapter ? [
+                    'id' => $previousChapter->id,
+                    'title' => $previousChapter->title,
+                    'order' => $previousChapter->order,
+                ] : null,
+                'next' => $nextChapter ? [
+                    'id' => $nextChapter->id,
+                    'title' => $nextChapter->title,
+                    'order' => $nextChapter->order,
+                ] : null,
+                'current' => [
+                    'order' => $chapter->order,
+                    'total_chapters' => Chapter::where('course_id', $chapter->course_id)->count(),
+                ]
+            ],
+            'course' => $chapter->course,
+        ]);
+    }
 }

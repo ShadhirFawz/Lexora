@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { studentCourseApi, Course, progressApi } from "@/lib/api";
 import { useRouter } from "next/navigation";
+import { FaBookOpen } from "react-icons/fa";
 
 interface EnrolledCourse extends Course {
   user_progress?: number;
@@ -156,7 +157,7 @@ export default function StudentDashboard() {
         className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden cursor-pointer hover:shadow-xl transition-all duration-300 flex flex-col h-[400px]" // Fixed height
       >
         {/* Course Image - Fixed height */}
-        <div className="h-32 bg-gradient-to-br from-blue-500 to-purple-600 relative flex-shrink-0">
+        <div className="h-32 bg-gradient-to-br from-gray-200 via-gray-300 to-gray-400 relative flex-shrink-0">
           {course.image_url ? (
             <img
               src={course.image_url}
@@ -165,7 +166,7 @@ export default function StudentDashboard() {
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-white text-4xl">
-              📚
+              <FaBookOpen className="w-12 h-12 text-blue-900 opacity-80" />
             </div>
           )}
           <div className="absolute top-3 right-3">

@@ -35,4 +35,9 @@ class Chapter extends Model
     {
         return $this->hasMany(ChapterProgress::class, 'chapter_id');
     }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(ChapterComment::class);
+    }
 }

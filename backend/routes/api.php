@@ -110,6 +110,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/chapters/{id}/video',         [ChapterController::class, 'saveVideo']);
     Route::get('/chapters/{id}/video',          [ChapterController::class, 'getVideo']);
 
+    Route::get('/chapters/{chapterId}/learn', [ChapterController::class, 'getChapterForLearning']);
+    Route::get('/chapters/{chapterId}/notes', [StudentNoteController::class, 'index']);
+
+
     /*
     |--------------------------------------------------------------------------
     | Progress
@@ -124,6 +128,7 @@ Route::middleware('auth:sanctum')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::post('/notes/video', [StudentNoteController::class, 'store']);
+    Route::delete('/notes/{noteId}', [StudentNoteController::class, 'destroy']);
 
     /*
     |--------------------------------------------------------------------------
@@ -132,9 +137,9 @@ Route::middleware('auth:sanctum')->group(function () {
     */
     Route::post('/chapters/{chapterId}/comments', [ChapterCommentController::class, 'store']);
     Route::get('/chapters/{chapterId}/comments', [ChapterCommentController::class, 'index']);
-    Route::delete('/comments/{id}/delete', [ChapterCommentController::class, 'destroy']);
-    Route::post('/comments/{id}/like', [CommentLikeController::class, 'toggle']);
-    Route::post('/comments/{id}/reply', [ChapterCommentController::class, 'reply']);
+    Route::delete('/chapter-comments/{id}', [ChapterCommentController::class, 'destroy']);
+    Route::post('/chapter-comments/{commentId}/like', [ChapterCommentController::class, 'toggleLike']);
+    Route::post('/chapter-comments/{commentId}/reply', [ChapterCommentController::class, 'reply']);
 
     /*
     |--------------------------------------------------------------------------

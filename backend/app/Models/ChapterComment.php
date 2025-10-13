@@ -5,10 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-class Comment extends Model
+class ChapterComment extends Model
 {
     use HasFactory;
 
@@ -16,9 +16,14 @@ class Comment extends Model
         'chapter_id',
         'course_id',
         'user_id',
-        'parent_id',   // for instructor replies
-        'content',
+        'parent_id',
+        'content'
     ];
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 
     public function chapter(): BelongsTo
     {
@@ -30,28 +35,19 @@ class Comment extends Model
         return $this->belongsTo(Course::class);
     }
 
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
-    }
-
     public function replies(): HasMany
     {
-        return $this->hasMany(Comment::class, 'parent_id');
+        return $this->hasMany(ChapterComment::class, 'parent_id');
     }
 
     public function likes(): BelongsToMany
     {
-        return $this->belongsToMany(
-            User::class,
-            'comment_likes',    // pivot table name
-            'comment_id',       // this model FK on pivot
-            'user_id'           // related model FK on pivot
-        )->withTimestamps();
+        return $this->belongsToMany(User::class, 'chapter_comment_likes', 'chapter_comment_id', 'user_id')
+            ->withTimestamps();
     }
 
     public function parent(): BelongsTo
     {
-        return $this->belongsTo(Comment::class, 'parent_id');
+        return $this->belongsTo(ChapterComment::class, 'parent_id');
     }
 }
