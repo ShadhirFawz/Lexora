@@ -434,8 +434,8 @@ export default function CourseDetailPage() {
       });
       return;
     }
-    // Navigate to chapter detail page
-    router.push(`/dashboard/student/courses/${courseId}/chapters/${chapter.id}`);
+    // Navigate to chapter learning page
+    router.push(`/dashboard/student/courses/${courseId}/${chapter.id}/learn`);
   };
 
   const getCompletedChapters = () => {

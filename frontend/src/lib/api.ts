@@ -120,6 +120,54 @@ export interface Progress {
   updated_at?: string;
 }
 
+export interface StudentNote {
+  id: number;
+  student_id: number;
+  course_id: number;
+  chapter_id: number;
+  timestamp: number;
+  note: string;
+  created_at: string;
+  updated_at: string;
+  formatted_timestamp: string;
+}
+
+export interface ChapterComment {
+  id: number;
+  content: string;
+  user_id: number;
+  user: User;
+  parent_id: number | null;
+  chapter_id: number;
+  course_id: number;
+  likes_count: number;
+  is_liked: boolean;
+  created_at: string;
+  updated_at: string;
+  replies?: ChapterComment[];
+}
+
+export interface ChapterLearningData {
+  chapter: Chapter;
+  navigation: {
+    previous: {
+      id: number;
+      title: string;
+      order: number;
+    } | null;
+    next: {
+      id: number;
+      title: string;
+      order: number;
+    } | null;
+    current: {
+      order: number;
+      total_chapters: number;
+    };
+  };
+  course: Course;
+}
+
 export interface CourseProgress {
   total_chapters: number;
   completed_chapters: number;
@@ -407,16 +455,17 @@ export const chapterCommentApi = {
 
   // Reply to comment
   replyToComment: (commentId: number, content: string, token?: string) =>
-    apiFetch(`/comments/${commentId}/reply`, "POST", { content }, token),
+    apiFetch(`/chapter-comments/${commentId}/reply`, "POST", { content }, token),
 
   // Delete comment
   deleteComment: (commentId: number, token?: string) =>
-    apiFetch(`/comments/${commentId}/delete`, "DELETE", null, token),
+    apiFetch(`/chapter-comments/${commentId}`, "DELETE", null, token),
 
   // Like/unlike comment
   toggleLike: (commentId: number, token?: string) =>
-    apiFetch(`/comments/${commentId}/like`, "POST", null, token),
+    apiFetch(`/chapter-comments/${commentId}/like`, "POST", null, token),
 };
+
 
 // Note-related API calls
 export const noteApi = {
@@ -425,9 +474,17 @@ export const noteApi = {
     apiFetch("/notes/video", "POST", {
       course_id: courseId,
       chapter_id: chapterId,
-      content,
+      note: content,  // Changed from 'content' to 'note' to match backend validation
       timestamp
     }, token),
+
+  // Get notes for chapter (already added above in chapterLearningApi, but keeping for consistency)
+  getNotes: (chapterId: string | string[] | number | undefined, token?: string) =>
+    chapterLearningApi.getChapterNotes(chapterId, token),
+
+  // Delete note
+  deleteNote: (noteId: number, token?: string) =>
+    chapterLearningApi.deleteNote(noteId, token),
 };
 
 // Student Course API calls
@@ -455,6 +512,27 @@ export const studentCourseApi = {
     const queryString = queryParams.toString();
     return apiFetch(`/student/courses${queryString ? `?${queryString}` : ''}`, "GET", null, token);
   },
+};
+
+// Chapter Learning API calls
+export const chapterLearningApi = {
+  // Get chapter data for learning page
+  getChapterForLearning: (chapterId: string | string[] | number | undefined, token?: string) => {
+    const id = Array.isArray(chapterId) ? chapterId[0] : chapterId;
+    if (!id) throw new Error("Chapter ID is required");
+    return apiFetch(`/chapters/${id}/learn`, "GET", null, token);
+  },
+
+  // Get student notes for chapter
+  getChapterNotes: (chapterId: string | string[] | number | undefined, token?: string) => {
+    const id = Array.isArray(chapterId) ? chapterId[0] : chapterId;
+    if (!id) throw new Error("Chapter ID is required");
+    return apiFetch(`/chapters/${id}/notes`, "GET", null, token);
+  },
+
+  // Delete a note
+  deleteNote: (noteId: number, token?: string) =>
+    apiFetch(`/notes/${noteId}`, "DELETE", null, token),
 };
 
 // Admin API calls

@@ -175,7 +175,14 @@ export default function StudentCoursesPage() {
   });
 
   const handleContinueLearning = (course: EnrolledCourse) => {
-    router.push(`/dashboard/student/courses/${course.id}`);
+    // Navigate to the first chapter's learning page
+    if (course.chapters && course.chapters.length > 0) {
+      const firstChapter = course.chapters[0];
+      router.push(`/dashboard/student/courses/${course.id}/${firstChapter.id}/learn`);
+    } else {
+      // Fallback to course details if no chapters exist
+      router.push(`/dashboard/student/courses/${course.id}`);
+    }
   };
 
   const handleViewCourse = (course: EnrolledCourse) => {
