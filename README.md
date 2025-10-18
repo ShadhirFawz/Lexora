@@ -4,6 +4,22 @@
 
 Lexora is a comprehensive e-learning platform built with a Laravel backend and Next.js frontend. It enables instructors to create and manage courses with chapters, videos, and interactive features, while students can enroll, track progress, take notes, and engage through comments and reactions. The platform supports role-based access (admin, instructor, student), secure authentication, and media handling via Cloudinary for image uploads.
 
+<p align='center'>
+  <img src="https://github.com/ShadhirFawz/Lexora/blob/main/Assets/LexoraImg.png" alt="Screenshot 1" width="400" />
+</p>
+
+### Screenshots
+
+<p align='center'>
+  <img src="https://github.com/ShadhirFawz/Lexora/blob/main/Assets/Screenshot%202025-10-13%20172529.png" alt="Screenshot 1" width="500" />
+  <img src="https://github.com/ShadhirFawz/Lexora/blob/main/Assets/Screenshot%202025-10-13%20175123.png" alt="Screenshot 2" width="500" />
+  <img src="https://github.com/ShadhirFawz/Lexora/blob/main/Assets/Screenshot%202025-10-13%20173200.png" alt="Screenshot 3" width="500" />
+  <img src="https://github.com/ShadhirFawz/Lexora/blob/main/Assets/Screenshot%202025-10-13%20175438.png" alt="Screenshot 4" width="500" />
+  <br>
+  <img src="https://github.com/ShadhirFawz/Lexora/blob/main/Assets/Screenshot%202025-10-13%20182256.png" alt="Screenshot 5" width="500" />
+  <img src="https://github.com/ShadhirFawz/Lexora/blob/main/Assets/Screenshot%202025-10-13%20182359.png" alt="Screenshot 5" width="500" />
+</p>
+
 ## Table of Contents
 
 - [Features](#features)
