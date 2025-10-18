@@ -56,7 +56,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="flex min-h-screen bg-gradient-to-r from-indigo-100 via-purple-100 to-pink-100">
       {/* Sidebar */}
       <aside className="w-64 bg-white shadow-md p-6 flex flex-col">
-        <h2 className="text-2xl font-bold text-indigo-600 mb-6">E-Learning</h2>
+        <h2 className="text-2xl font-bold text-indigo-600 mb-6">Lexora</h2>
         <nav className="flex-1 space-y-4">
           {navItems[role]?.map((item) => (
             <button
