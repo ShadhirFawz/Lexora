@@ -1,6 +1,6 @@
-# Lexora
+# 🚀 Lexora
 
-**Transform your learning journey**
+⭐ **Transform Your Learning Journey**
 
 Lexora is a comprehensive e-learning platform built with a Laravel backend and Next.js frontend. It enables instructors to create and manage courses with chapters, videos, and interactive features, while students can enroll, track progress, take notes, and engage through comments and reactions. The platform supports role-based access (admin, instructor, student), secure authentication, and media handling via Cloudinary for image uploads.
 
@@ -8,7 +8,7 @@ Lexora is a comprehensive e-learning platform built with a Laravel backend and N
   <img src="https://github.com/ShadhirFawz/Lexora/blob/main/Assets/LexoraImg.png" alt="Screenshot 1" width="400" />
 </p>
 
-### Screenshots
+### 📸 UI Screenshots
 
 <p align='center'>
   <img src="https://github.com/ShadhirFawz/Lexora/blob/main/Assets/Screenshot%202025-10-13%20172529.png" alt="Screenshot 1" width="500" />
@@ -32,7 +32,7 @@ Lexora is a comprehensive e-learning platform built with a Laravel backend and N
 - [API Endpoints](#api-endpoints)
 - [Contributing](#contributing)
 
-## Features
+## ⚡ Features <a id="features"></a>
 
 - **User Authentication**: Secure registration, login, and logout with Sanctum-based API tokens.
 - **Role-Based Access**: Admins manage users and courses (For future Implementation); instructors create and analyze courses; students enroll and learn.
@@ -48,7 +48,7 @@ Lexora is a comprehensive e-learning platform built with a Laravel backend and N
 - **Media Handling**: Frontend integrates Cloudinary for seamless image uploads.
 - **Learning Interface**: Dedicated endpoints for learning chapters, including notes and comments.
 
-## Tech Stack
+## 🚀 Tech Stack <a id="tech-stack"></a>
 
 - **Backend**: Laravel (PHP framework) with PostgreSQL as the primary database.
 - **Frontend**: Next.js (React framework) with Tailwind CSS for styling.
@@ -56,6 +56,14 @@ Lexora is a comprehensive e-learning platform built with a Laravel backend and N
 - **API Authentication**: Laravel Sanctum.
 - **Database**: PostgreSQL for relational data storage.
 - **Other**: CORS support for frontend-backend communication, file-based sessions.
+
+### 🔗 Official Links
+ - 📱 [Laravel](https://laravel.com/)
+ - 📱 [NextJS](https://nextjs.org/)
+ - 📱 [PostgreSQL](https://www.postgresql.org/)
+ - 📱 [Cloudinary](https://cloudinary.com/)
+ - 📱 [TailwindCSS](https://tailwindcss.com/)
+ - 📱 [Npm](https://www.npmjs.com/)
 
 ## Prerequisites
 
@@ -65,7 +73,7 @@ Lexora is a comprehensive e-learning platform built with a Laravel backend and N
 - PostgreSQL database server
 - Cloudinary account (for image uploads; obtain cloud name and upload preset)
 
-## Installation
+## ✅ Installation <a id="installation"></a>
 
 ### Backend Setup (Laravel)
 
@@ -149,7 +157,7 @@ Lexora is a comprehensive e-learning platform built with a Laravel backend and N
 2. Start the frontend development server:
    ```
    cd frontend
-   npm run dev  # or yarn dev
+   npm run dev 
    ```
    The app will be available at `http://localhost:3000`.
 
