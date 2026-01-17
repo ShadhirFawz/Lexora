@@ -13,24 +13,39 @@ class AuthController extends Controller
     {
         $request->validate([
             'name'     => 'required|string|max:255',
+            'username' => 'nullable|string|max:50|unique:users',
             'email'    => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:6',
             'role'     => 'in:student,instructor,admin',
+            'phone'    => 'nullable|string|max:20',
+            'date_of_birth' => 'nullable|date',
+            'gender'   => 'nullable|in:male,female,other,prefer_not_to_say',
+            // Add validation for other fields as needed
         ]);
 
-        $user = User::create([
+        $userData = [
             'name'     => $request->name,
+            'username' => $request->username ?? strtolower(str_replace(' ', '.', $request->name)) . rand(100, 999),
             'email'    => $request->email,
             'password' => Hash::make($request->password),
             'role'     => $request->role ?? 'student',
-        ]);
+            'phone'    => $request->phone,
+            'date_of_birth' => $request->date_of_birth,
+            'gender'   => $request->gender,
+            'bio'      => $request->bio,
+            'preferred_language' => $request->preferred_language ?? 'en',
+            'timezone' => $request->timezone ?? 'UTC',
+            'locale'   => $request->locale ?? 'en',
+        ];
+
+        $user = User::create($userData);
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'status'  => 'success',
             'message' => 'User registered successfully',
-            'user'    => $user->only(['id', 'name', 'email', 'role']),
+            'user'    => $user->only(['id', 'name', 'username', 'email', 'role', 'profile_picture_url']),
             'token'   => $token,
         ], 201);
     }
